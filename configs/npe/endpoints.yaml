@@ -1,0 +1,8 @@
+- endpoint_type_name: S3
+  endpoint_name: s3_default
+  bucket_name: bank-dwh-analytics-s3-npe
+  lockbox_secret_id: e6q7nvgjnj8iufmc8p29
+- endpoint_type_name: S3
+  endpoint_name: s3_analytics_sa
+  bucket_name: bank-dwh-analytics-s3-npe
+  lockbox_secret_id: e6q6emqrgpueigg3a191

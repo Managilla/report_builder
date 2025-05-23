@@ -1,0 +1,825 @@
+- name: merchants_reconciliation_act_data
+  report_type: dwh2s3
+  sql_query: merchants.sql
+  s3_sources:
+    main_docum: data/abs-cft/ods/main_docum/snapshots/dt={today}
+    bo_txn: data/processing/ods/pay-acq-bo/bo_txn_bak # bo_txn нет на NPE
+    bo_agreement: data/processing/ods/pay-acq-bo/bo_agreement
+    bo_txn_type: data/processing/ods/pay-acq-bo/bo_txn_type
+    inv_invoice: data/processing/ods/pay-acq-bo/inv_invoice
+    inv_invoice_item: data/processing/ods/pay-acq-bo/inv_invoice_item
+    inv_invoice_entry: data/processing/ods/pay-acq-bo/inv_invoice_entry
+    bo_fee_txn: data/processing/ods/pay-acq-bo/bo_fee_txn
+    acc_account: data/processing/ods/pay-acq-acc/acc_account
+    records: data/abs-cft/ods/records/snapshots/dt={today}
+    ac_fin: data/abs-cft/ods/ac_fin/snapshots/dt={today}
+  s3_path: data/temp/merchants_reconciliation_act_data
+
+- name: merchants_reconciliation_act_data_settl
+  report_type: dwh2s3
+  sql_query: merchants_settl.sql
+  s3_sources:
+    bo_txn_settl: data/processing_settl/ods/pay-acq-bo/bo_txn/snapshots/dt={today}
+    bo_agreement_settl: data/processing_settl/ods/pay-acq-bo/bo_agreement
+    bo_txn_type_settl: data/processing_settl/ods/pay-acq-bo/bo_txn_type
+    inv_invoice_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice
+    inv_invoice_item_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice_item
+    inv_invoice_entry_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice_entry/snapshots/dt={today}
+    bo_fee_txn_settl: data/processing_settl/ods/pay-acq-bo/bo_fee_txn/snapshots/dt={today}
+    acc_account_settl: data/processing_settl/ods/pay-acq-acc/acc_account/snapshots/dt={today}
+    main_docum: data/abs-cft/ods/main_docum/snapshots/dt={today}
+    records: data/abs-cft/ods/records/snapshots/dt={today}
+    ac_fin: data/abs-cft/ods/ac_fin/snapshots/dt={today}
+  s3_path: data/temp/merchants_reconciliation_act_data_settl
+
+- name: merchants_reconciliation_act_data_cards
+  report_type: dwh2s3
+  sql_query: merchants_cards.sql
+  s3_sources:
+    acc_account_cards: data/processing/ods/cards-acq-acc/acc_account
+    bo_agreement_cards: data/processing/ods/cards-acq-bo/bo_agreement
+    bo_txn_type_cards: data/processing/ods/cards-acq-bo/bo_txn_type
+    inv_invoice_cards: data/processing/ods/cards-acq-bo/inv_invoice
+    inv_invoice_item_cards: data/processing/ods/cards-acq-bo/inv_invoice_item
+    inv_invoice_entry_cards: data/processing/ods/cards-acq-bo/inv_invoice_entry
+    bo_fee_txn_cards: data/processing/ods/cards-acq-bo/bo_fee_txn
+    bo_txn_cards: data/processing/ods/pay-acq-bo/bo_txn_bak # data/processing/ods/cards-acq-bo/bo_txn # нет на NPE
+    main_docum: data/abs-cft/ods/main_docum/snapshots/dt={today}
+    records: data/abs-cft/ods/records/snapshots/dt={today}
+    ac_fin: data/abs-cft/ods/ac_fin/snapshots/dt={today}
+  s3_path: data/temp/merchants_reconciliation_act_data_cards
+
+- name: merchants_reconciliation_final
+  report_type: dwh2s3
+  sql_query: merchants_final.sql
+  s3_sources:
+    act_data: data/temp/merchants_reconciliation_act_data
+    act_data_settl: data/temp/merchants_reconciliation_act_data_settl
+    act_data_cards: data/temp/merchants_reconciliation_act_data_cards
+    bo_agreement: data/processing/ods/pay-acq-bo/bo_agreement
+    bo_agreement_settl: data/processing_settl/ods/pay-acq-bo/bo_agreement
+    bo_agreement_cards: data/processing/ods/cards-acq-bo/bo_agreement
+    merchant_agreement: data/dds/mdict/mdict_merchant_agreement/valid_to_date=2100-12-31
+  s3_path: data/temp/merchants_reconciliation
+
+- &insert
+  name: ar-docs_acquiring
+  report_type: dwh2notification
+  s3_sources:
+    merchants_reconciliation: data/temp/merchants_reconciliation
+  sql_query: select * from merchants_reconciliation
+  s3_bucket: bank-dwh-analytics-s3-npe
+  filename_pattern: "operations/reconciliation/Сверка актов по мерчантам/{PREV_CYR_MONTH_SLASH}/SUCCESS/Акт по договору №{agr_number} от {agr_date} за {PREV_CYR_MONTH}.docx"
+  indicator_type: success
+  indicator_name: 'merchants/{agr_number} {PREV_CYR_MONTH}'
+  attach_type: [email]
+  attachment:
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10490258-ЭКВ/Медиа'
+      sql_fill_template: select result.* from result where agr_number='10490258-ЭКВ/Медиа' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: pharma_market_ic_acquiring
+  attachment:
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='20092024/ЭКВ/МАРКЕТ'
+      sql_fill_template: select result.* from result where agr_number='20092024/ЭКВ/МАРКЕТ' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: nastyasedykh
+  attachment:
+    - file_template: AcquiringHelp.docx
+      sql_condition: select condition from result where agr_number='10562726-ЭКВ/ПР'
+      sql_fill_template: select result.* from result where agr_number='10562726-ЭКВ/ПР' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: accdocs_acquiring
+  attachment:
+    - file_template: SBPHelp.docx
+      sql_condition: select condition from result where agr_number='25092023/СБП'
+      sql_fill_template: select result.* from result where agr_number='25092023/СБП' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: ar-docs
+  attachment:
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='10768283'
+      sql_fill_template: select result.* from result where agr_number='10768283' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10534827'
+      sql_fill_template: select result.* from result where agr_number='10534827' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10504465'
+      sql_fill_template: select result.* from result where agr_number='10504465' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='21032022'
+      sql_fill_template: select result.* from result where agr_number='21032022' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10561521-ЭКВ/МАР'
+      sql_fill_template: select result.* from result where agr_number='10561521-ЭКВ/МАР' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='26032022-2'
+      sql_fill_template: select result.* from result where agr_number='26032022-2' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='26032022-1'
+      sql_fill_template: select result.* from result where agr_number='26032022-1' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='26032022-3'
+      sql_fill_template: select result.* from result where agr_number='26032022-3' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10490258-ЭКВ/ПЛЮС'
+      sql_fill_template: select result.* from result where agr_number='10490258-ЭКВ/ПЛЮС' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10490258-ЭКВ/КИНО'
+      sql_fill_template: select result.* from result where agr_number='10490258-ЭКВ/КИНО' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: vassilena
+  attachment:
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='10667532'
+      sql_fill_template: select result.* from result where agr_number='10667532' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='10667543'
+      sql_fill_template: select result.* from result where agr_number='10667543' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10632609-ЭКВ'
+      sql_fill_template: select result.* from result where agr_number='10632609-ЭКВ' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='22032022'
+      sql_fill_template: select result.* from result where agr_number='22032022' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: ic_ar-docs
+  attachment:
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='05072024/МАР/С2B'
+      sql_fill_template: select result.* from result where agr_number='05072024/МАР/С2B' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: ic_acquiring_ar-docs
+  attachment:
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='27042024/СБП/ЧЕК'
+      sql_fill_template: select result.* from result where agr_number='27042024/СБП/ЧЕК' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='07062024/СБП/УБЕР'
+      sql_fill_template: select result.* from result where agr_number='07062024/СБП/УБЕР' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='14062024/СБП/МАРШ'
+      sql_fill_template: select result.* from result where agr_number='14062024/СБП/МАРШ' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='22032024-ЭКВ/ДКРит'
+      sql_fill_template: select result.* from result where agr_number='22032024-ЭКВ/ДКРит' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='22032024-ЭКВ/ДКРест'
+      sql_fill_template: select result.* from result where agr_number='22032024-ЭКВ/ДКРест' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: eda-acquiring
+  attachment:
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10490258-ЭКВ/ЕДАРИТ'
+      sql_fill_template: select result.* from result where agr_number='10490258-ЭКВ/ЕДАРИТ' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10490258-ЭКВ/ЛАВКА'
+      sql_fill_template: select result.* from result where agr_number='10490258-ЭКВ/ЛАВКА' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10490258-ЭКВ/ЕДАРЕСТ'
+      sql_fill_template: select result.* from result where agr_number='10490258-ЭКВ/ЕДАРЕСТ' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: ic
+  attachment:
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='22072024/С2В/Драйв'
+      sql_fill_template: select result.* from result where agr_number='22072024/С2В/Драйв' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='22072024/С2В/ШТРАФДОГ'
+      sql_fill_template: select result.* from result where agr_number='22072024/С2В/ШТРАФДОГ' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='22072024/С2В/ШТРАФКОАП'
+      sql_fill_template: select result.* from result where agr_number='22072024/С2В/ШТРАФКОАП' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='15072024/С2В/ЕДА'
+      sql_fill_template: select result.* from result where agr_number='15072024/С2В/ЕДА' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='15072024/С2В/ДК'
+      sql_fill_template: select result.* from result where agr_number='15072024/С2В/ДК' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='15072024/С2В/ЛАВКА'
+      sql_fill_template: select result.* from result where agr_number='15072024/С2В/ЛАВКА' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='08082024/С2В'
+      sql_fill_template: select result.* from result where agr_number='08082024/С2В' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='22072024/С2В/ЗАПР'
+      sql_fill_template: select result.* from result where agr_number='22072024/С2В/ЗАПР' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='22072024/С2В/ТОПЛ'
+      sql_fill_template: select result.* from result where agr_number='22072024/С2В/ТОПЛ' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='21082024/С2В/ПУТЕШ'
+      sql_fill_template: select result.* from result where agr_number='21082024/С2В/ПУТЕШ' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='19082024/С2В/ПЭЙ'
+      sql_fill_template: select result.* from result where agr_number='19082024/С2В/ПЭЙ' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='06092024/С2В/АФИША'
+      sql_fill_template: select result.* from result where agr_number='06092024/С2В/АФИША' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='19082024/С2В/СПЛ'
+      sql_fill_template: select result.* from result where agr_number='19082024/С2В/СПЛ' 
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='22072024/С2В/ДОСТ'
+      sql_fill_template: select result.* from result where agr_number='22072024/С2В/ДОСТ' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ИГРЫ'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ИГРЫ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='18042024/СБП/ПУТЕШЕСТВ'
+      sql_fill_template: select result.* from result where agr_number='18042024/СБП/ПУТЕШЕСТВ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='22042024/СБП/АВТ'
+      sql_fill_template: select result.* from result where agr_number='22042024/СБП/АВТ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='15042024/СБП/Обл'
+      sql_fill_template: select result.* from result where agr_number='15042024/СБП/Обл' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='28082024/СБП/АНГЛ'
+      sql_fill_template: select result.* from result where agr_number='28082024/СБП/АНГЛ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='05092024/СБП/РАСП'
+      sql_fill_template: select result.* from result where agr_number='05092024/СБП/РАСП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='06072023/СБП'
+      sql_fill_template: select result.* from result where agr_number='06072023/СБП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='10022024/СБП/ПАСП'
+      sql_fill_template: select result.* from result where agr_number='10022024/СБП/ПАСП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='15022024/СБП/ШТРАФКОАП'
+      sql_fill_template: select result.* from result where agr_number='15022024/СБП/ШТРАФКОАП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='15022024/СБП/ШТРАФДОГ'
+      sql_fill_template: select result.* from result where agr_number='15022024/СБП/ШТРАФДОГ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='15022024/СБП/КАРШ'
+      sql_fill_template: select result.* from result where agr_number='15022024/СБП/КАРШ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='22112023/СБП'
+      sql_fill_template: select result.* from result where agr_number='22112023/СБП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='23082023/СБП/СПРАВ'
+      sql_fill_template: select result.* from result where agr_number='23082023/СБП/СПРАВ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='23082023/СБП/НАВ'
+      sql_fill_template: select result.* from result where agr_number='23082023/СБП/НАВ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='23082023/СБП/РАЗРАБ'
+      sql_fill_template: select result.* from result where agr_number='23082023/СБП/РАЗРАБ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='23082023/СБП/ИГРЫ'
+      sql_fill_template: select result.* from result where agr_number='23082023/СБП/ИГРЫ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='23082023/СБП/ДИРЕКТ'
+      sql_fill_template: select result.* from result where agr_number='23082023/СБП/ДИРЕКТ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='01032024/СБП/ПРАКТ'
+      sql_fill_template: select result.* from result where agr_number='01032024/СБП/ПРАКТ' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='13022024/ЭКВ/СПЛ'
+      sql_fill_template: select result.* from result where agr_number='13022024/ЭКВ/СПЛ' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='27092024/ЭКВ/ПУТЕШ'
+      sql_fill_template: select result.* from result where agr_number='27092024/ЭКВ/ПУТЕШ' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='15022023-ЭКВ/ПЛЮС'
+      sql_fill_template: select result.* from result where agr_number='15022023-ЭКВ/ПЛЮС' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ВЕРТ640'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ВЕРТ640' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ДК1230'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ДК1230' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ДОСТ1162'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ДОСТ1162' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ТАКСИ124'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ТАКСИ124' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ПЭЙ1125'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ПЭЙ1125' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ЕДА1194'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ЕДА1194' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ЕДА663'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ЕДА663' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ЕДА629'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ЕДА629' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ПЛЮС1260'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ПЛЮС1260' 
+    - file_template: RasBank.docx
+      sql_condition: select condition from result where agr_number='2024НСПК_ТАКСИ125'
+      sql_fill_template: select result.* from result where agr_number='2024НСПК_ТАКСИ125' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+- <<: *insert
+  name: ic_acquiring
+  attachment:
+    - file_template: Alpha.docx
+      sql_condition: select condition from result where agr_number='09072024/С2В/Такси'
+      sql_fill_template: select result.* from result where agr_number='09072024/С2В/Такси' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='13022024/СБП/ПЭЙ'
+      sql_fill_template: select result.* from result where agr_number='13022024/СБП/ПЭЙ' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='01082023/СБП'
+      sql_fill_template: select result.* from result where agr_number='01082023/СБП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='05082023/СБП'
+      sql_fill_template: select result.* from result where agr_number='05082023/СБП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='16022023'
+      sql_fill_template: select result.* from result where agr_number='16022023' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='11082023/СБП'
+      sql_fill_template: select result.* from result where agr_number='11082023/СБП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='14072023/СБП'
+      sql_fill_template: select result.* from result where agr_number='14072023/СБП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='15072023/СБП'
+      sql_fill_template: select result.* from result where agr_number='15072023/СБП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='17072023/СБП'
+      sql_fill_template: select result.* from result where agr_number='17072023/СБП' 
+    - file_template: SBP.docx
+      sql_condition: select condition from result where agr_number='22082023/СБП'
+      sql_fill_template: select result.* from result where agr_number='22082023/СБП' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='20112023-ЭКВ/Аренда'
+      sql_fill_template: select result.* from result where agr_number='20112023-ЭКВ/Аренда' 
+    - file_template: Acquiring.docx
+      sql_condition: select condition from result where agr_number='10756739'
+      sql_fill_template: select result.* from result where agr_number='10756739' 
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Добрый день, коллеги.
+      Во вложении акты за {PREV_CYR_MONTH}, АО "Яндекс банк"
+
+
+- name: not_success
+  report_type: dwh2notification
+  s3_sources:
+    merchants_reconciliation: data/temp/merchants_reconciliation
+  sql_query: select * from merchants_reconciliation
+  filename_pattern: "operations/reconciliation/Сверка актов по мерчантам/{PREV_CYR_MONTH_SLASH}/FAILED/Акт по договору №{agr_number} от {agr_date} за {PREV_CYR_MONTH}.docx"
+  indicator_type: none
+  s3_bucket: bank-dwh-analytics-s3-npe
+  attach_type: [email]
+  attachment:
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='09072024/С2В/Такси'
+      sql_fill_template: select * from result where agr_number='09072024/С2В/Такси'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22072024/С2В/Драйв'
+      sql_fill_template: select * from result where agr_number='22072024/С2В/Драйв'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22072024/С2В/ШТРАФДОГ'
+      sql_fill_template: select * from result where agr_number='22072024/С2В/ШТРАФДОГ'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22072024/С2В/ШТРАФКОАП'
+      sql_fill_template: select * from result where agr_number='22072024/С2В/ШТРАФКОАП'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15072024/С2В/ЕДА'
+      sql_fill_template: select * from result where agr_number='15072024/С2В/ЕДА'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15072024/С2В/ДК'
+      sql_fill_template: select * from result where agr_number='15072024/С2В/ДК'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15072024/С2В/ЛАВКА'
+      sql_fill_template: select * from result where agr_number='15072024/С2В/ЛАВКА'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='08082024/С2В'
+      sql_fill_template: select * from result where agr_number='08082024/С2В'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22072024/С2В/ЗАПР'
+      sql_fill_template: select * from result where agr_number='22072024/С2В/ЗАПР'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22072024/С2В/ТОПЛ'
+      sql_fill_template: select * from result where agr_number='22072024/С2В/ТОПЛ'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='21082024/С2В/ПУТЕШ'
+      sql_fill_template: select * from result where agr_number='21082024/С2В/ПУТЕШ'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='19082024/С2В/ПЭЙ'
+      sql_fill_template: select * from result where agr_number='19082024/С2В/ПЭЙ'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='06092024/С2В/АФИША'
+      sql_fill_template: select * from result where agr_number='06092024/С2В/АФИША'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='19082024/С2В/СПЛ'
+      sql_fill_template: select * from result where agr_number='19082024/С2В/СПЛ'
+      
+    - file_template: Alpha.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22072024/С2В/ДОСТ'
+      sql_fill_template: select * from result where agr_number='22072024/С2В/ДОСТ'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ИГРЫ'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ИГРЫ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='18042024/СБП/ПУТЕШЕСТВ'
+      sql_fill_template: select * from result where agr_number='18042024/СБП/ПУТЕШЕСТВ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22042024/СБП/АВТ'
+      sql_fill_template: select * from result where agr_number='22042024/СБП/АВТ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15042024/СБП/Обл'
+      sql_fill_template: select * from result where agr_number='15042024/СБП/Обл'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='27042024/СБП/ЧЕК'
+      sql_fill_template: select * from result where agr_number='27042024/СБП/ЧЕК'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='13022024/СБП/ПЭЙ'
+      sql_fill_template: select * from result where agr_number='13022024/СБП/ПЭЙ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='07062024/СБП/УБЕР'
+      sql_fill_template: select * from result where agr_number='07062024/СБП/УБЕР'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='05072024/МАР/С2B'
+      sql_fill_template: select * from result where agr_number='05072024/МАР/С2B'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='14062024/СБП/МАРШ'
+      sql_fill_template: select * from result where agr_number='14062024/СБП/МАРШ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='28082024/СБП/АНГЛ'
+      sql_fill_template: select * from result where agr_number='28082024/СБП/АНГЛ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='05092024/СБП/РАСП'
+      sql_fill_template: select * from result where agr_number='05092024/СБП/РАСП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='01082023/СБП'
+      sql_fill_template: select * from result where agr_number='01082023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10768283'
+      sql_fill_template: select * from result where agr_number='10768283'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='06072023/СБП'
+      sql_fill_template: select * from result where agr_number='06072023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10022024/СБП/ПАСП'
+      sql_fill_template: select * from result where agr_number='10022024/СБП/ПАСП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='05082023/СБП'
+      sql_fill_template: select * from result where agr_number='05082023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='16022023'
+      sql_fill_template: select * from result where agr_number='16022023'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='11082023/СБП'
+      sql_fill_template: select * from result where agr_number='11082023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15022024/СБП/ШТРАФКОАП'
+      sql_fill_template: select * from result where agr_number='15022024/СБП/ШТРАФКОАП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15022024/СБП/ШТРАФДОГ'
+      sql_fill_template: select * from result where agr_number='15022024/СБП/ШТРАФДОГ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15022024/СБП/КАРШ'
+      sql_fill_template: select * from result where agr_number='15022024/СБП/КАРШ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='14072023/СБП'
+      sql_fill_template: select * from result where agr_number='14072023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15072023/СБП'
+      sql_fill_template: select * from result where agr_number='15072023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='17072023/СБП'
+      sql_fill_template: select * from result where agr_number='17072023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22082023/СБП'
+      sql_fill_template: select * from result where agr_number='22082023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22112023/СБП'
+      sql_fill_template: select * from result where agr_number='22112023/СБП'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10667532'
+      sql_fill_template: select * from result where agr_number='10667532'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10667543'
+      sql_fill_template: select * from result where agr_number='10667543'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='23082023/СБП/СПРАВ'
+      sql_fill_template: select * from result where agr_number='23082023/СБП/СПРАВ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='23082023/СБП/НАВ'
+      sql_fill_template: select * from result where agr_number='23082023/СБП/НАВ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='23082023/СБП/РАЗРАБ'
+      sql_fill_template: select * from result where agr_number='23082023/СБП/РАЗРАБ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='23082023/СБП/ИГРЫ'
+      sql_fill_template: select * from result where agr_number='23082023/СБП/ИГРЫ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='23082023/СБП/ДИРЕКТ'
+      sql_fill_template: select * from result where agr_number='23082023/СБП/ДИРЕКТ'
+      
+    - file_template: SBP.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='01032024/СБП/ПРАКТ'
+      sql_fill_template: select * from result where agr_number='01032024/СБП/ПРАКТ'
+      
+    - file_template: SBPHelp.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='25092023/СБП'
+      sql_fill_template: select * from result where agr_number='25092023/СБП'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22032024-ЭКВ/ДКРит'
+      sql_fill_template: select * from result where agr_number='22032024-ЭКВ/ДКРит'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22032024-ЭКВ/ДКРест'
+      sql_fill_template: select * from result where agr_number='22032024-ЭКВ/ДКРест'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='13022024/ЭКВ/СПЛ'
+      sql_fill_template: select * from result where agr_number='13022024/ЭКВ/СПЛ'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='20112023-ЭКВ/Аренда'
+      sql_fill_template: select * from result where agr_number='20112023-ЭКВ/Аренда'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='20092024/ЭКВ/МАРКЕТ'
+      sql_fill_template: select * from result where agr_number='20092024/ЭКВ/МАРКЕТ'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='27092024/ЭКВ/ПУТЕШ'
+      sql_fill_template: select * from result where agr_number='27092024/ЭКВ/ПУТЕШ'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10534827'
+      sql_fill_template: select * from result where agr_number='10534827'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10504465'
+      sql_fill_template: select * from result where agr_number='10504465'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='15022023-ЭКВ/ПЛЮС'
+      sql_fill_template: select * from result where agr_number='15022023-ЭКВ/ПЛЮС'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10756739'
+      sql_fill_template: select * from result where agr_number='10756739'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10632609-ЭКВ'
+      sql_fill_template: select * from result where agr_number='10632609-ЭКВ'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='21032022'
+      sql_fill_template: select * from result where agr_number='21032022'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='22032022'
+      sql_fill_template: select * from result where agr_number='22032022'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10561521-ЭКВ/МАР'
+      sql_fill_template: select * from result where agr_number='10561521-ЭКВ/МАР'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='26032022-2'
+      sql_fill_template: select * from result where agr_number='26032022-2'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='26032022-1'
+      sql_fill_template: select * from result where agr_number='26032022-1'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='26032022-3'
+      sql_fill_template: select * from result where agr_number='26032022-3'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10490258-ЭКВ/ПЛЮС'
+      sql_fill_template: select * from result where agr_number='10490258-ЭКВ/ПЛЮС'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10490258-ЭКВ/Медиа'
+      sql_fill_template: select * from result where agr_number='10490258-ЭКВ/Медиа'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10490258-ЭКВ/ЕДАРИТ'
+      sql_fill_template: select * from result where agr_number='10490258-ЭКВ/ЕДАРИТ'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10490258-ЭКВ/ЛАВКА'
+      sql_fill_template: select * from result where agr_number='10490258-ЭКВ/ЛАВКА'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10490258-ЭКВ/ЕДАРЕСТ'
+      sql_fill_template: select * from result where agr_number='10490258-ЭКВ/ЕДАРЕСТ'
+      
+    - file_template: Acquiring.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10490258-ЭКВ/КИНО'
+      sql_fill_template: select * from result where agr_number='10490258-ЭКВ/КИНО'
+      
+    - file_template: AcquiringHelp.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='10562726-ЭКВ/ПР'
+      sql_fill_template: select * from result where agr_number='10562726-ЭКВ/ПР'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ВЕРТ640'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ВЕРТ640'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ДК1230'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ДК1230'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ДОСТ1162'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ДОСТ1162'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ТАКСИ124'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ТАКСИ124'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ПЭЙ1125'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ПЭЙ1125'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ЕДА1194'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ЕДА1194'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ЕДА663'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ЕДА663'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ЕДА629'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ЕДА629'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ПЛЮС1260'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ПЛЮС1260'
+      
+    - file_template: RasBank.docx
+      sql_condition: select case when condition=1 then 0 else 1 end as condition from result where agr_number='2024НСПК_ТАКСИ125'
+      sql_fill_template: select * from result where agr_number='2024НСПК_ТАКСИ125'
+      
+  email:
+    sender: osopkis@yandex-team.ru
+    subject: Сверка актов для мерчантов за {PREV_CYR_MONTH}
+    recipients: [lerayatsevich@yandex-team.ru]
+    body: Результат сверки суммы показателей в разрезе договоров.
+
+- name: merchants_acts_details
+  report_type: dwh2notification
+  s3_sources:
+    merchants_reconciliation: data/temp/merchants_reconciliation
+  # s3_bucket: dwh-bank-recon-s3-prod
+  filename_pattern: "operations/reconciliation/Сверка актов по мерчантам/{PREV_CYR_MONTH_SLASH}/result/Свод по актам по выплатам мерчантам за {PREV_CYR_MONTH} ({DTTM}).xlsx" 
+  sql_query: |
+    select agr_number as `Номер договора`,
+      merchant as `ЮЛ`,
+      solar_start_debt_bank_amount as `Задолженность Банка на начало отчетного периода составила`,
+      solar_start_debt_client_amount as `Задолженность Клиента на начало отчетного периода составила`,
+      solar_purchases_amount as `Общая сумма авторизованных операций за отчетный период (руб.)`,
+      solar_refunds_amount as `Общая сумма операций возврата/отмены Платежей, произведенных в отчетном периоде (руб.)`,
+      solar_dispute_debit_amount as `Сумма операций Chargeback по картам в отчетный период (списание) (руб.)`,
+      solar_dispute_credit_amount as `Сумма операций Chargeback по картам в отчетный период (зачисление) (руб.)`,
+      solar_fee_amount as `Комиссионное вознаграждение Банка за отчетный период (руб.)`,
+      solar_transfer_amount as `Сумма перечисленных денежных средств в пользу Клиента за отчетный период (руб.)`,
+      solar_fix_loan_amount as `Сумма погашенной задолженности Клиента перед Банком за отчетный период (руб.)`,
+      solar_end_debt_client_amount as `Задолженность Клиента на конец отчетного периода составила`,
+      solar_end_debt_bank_amount as `Задолженность Банка на конец отчетного периода составила`,
+      condition as `Сумма сошлась`
+    from merchants_reconciliation
+  indicator_type: none
+  attach_type: [email, email_text]
+  attachment:
+    - sql_condition: select 1
+      add_text: Количество сформированных актов за {DT} = {cnt} (из них {success_cnt} успешны, {failure_cnt} не успешны), детали в файле и на S3.
+      sql_fill_template: |
+        select count(*) as cnt,
+        sum(`Сумма сошлась`) as success_cnt,
+        sum(case when `Сумма сошлась`=0 then 1 else 0 end) as failure_cnt
+        from result
+  email:
+    subject: Свод по актам по выплатам мерчантам за {DT}
+    recipients: 
+      - lerayatsevich@yandex-team.ru
+    body: Добрый день!

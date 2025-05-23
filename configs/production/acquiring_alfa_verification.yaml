@@ -1,0 +1,59 @@
+- &insert
+  name: acquiring_alfa_verification
+  report_type: dwh2notification
+  s3_sources:
+    main_docum_inc: data/abs-cft/raw/main_docum/inc
+    dict_acquiring_alpha: data/dds/mdict/mdict_acquiring_alpha/valid_to_date=2100-12-31
+  sql_query: acquiring_alfa_verification.sql
+  indicator_type: failure
+  filename_pattern:  "users/lerayatsevich/rec/Сверка по эквайрингу через Альфу за {DT}.csv"
+  indicator_name: 'acquiring_alfa/{DT}'
+  DT: -1
+  ticket:
+    queue: SVERKIDWH
+    summary: Сверка по эквайрингу через Альфу за {DT} не успешна
+    description: Расхождения обнаружены, результат в почте
+    assignee: chilichikhina
+    type:
+      name: Task
+    priority:
+      name: Critical 
+  attach_type: [email_text]
+  attachment:
+    - sql_condition: |
+        select case when count(*) = 1 and
+        (coalesce(sum(payments_within_bank_amount-payments_alfa_amount), -1)!=0 
+        or 
+        coalesce(sum(refunds_within_bank_amount-refunds_alfa_amount), -1)!=0) then 1 else 0 end
+        from result
+      sql_fill_template: |
+        select result.*, 
+        coalesce(payments_within_bank_amount, 0) - coalesce(payments_alfa_amount, 0) as difference_payments_amount,
+        coalesce(refunds_within_bank_amount, 0) - coalesce(refunds_alfa_amount, 0) as difference_refunds_amount
+        from result
+      add_text: acquiring_alfa_email.j2
+  email:
+    subject: Сверка по эквайрингу через Альфу за {DT} не успешна
+    recipients: 
+      - Tatyana.S.Chilichikhina@bank.yandex.ru
+      - Elena.A.Ovechkina@bank.yandex.ru
+      - Dmitry.A.Ovechkin@bank.yandex.ru
+      - Liudmila.I.Stepanova@bank.yandex.ru
+    body: ''
+  email_on_failture:
+    subject: Сверка по эквайрингу через Альфу за {DT} успешна
+    recipients: 
+      - Tatyana.S.Chilichikhina@bank.yandex.ru
+      - Elena.A.Ovechkina@bank.yandex.ru
+      - Dmitry.A.Ovechkin@bank.yandex.ru
+      - Liudmila.I.Stepanova@bank.yandex.ru
+      - lerayatsevich@yandex-team.ru
+    body: Расхождений не обнаружено.
+
+- <<: *insert
+  name: acquiring_alfa_verification_sat
+  DT: -2
+
+- <<: *insert
+  name: acquiring_alfa_verification_fri
+  DT: -3

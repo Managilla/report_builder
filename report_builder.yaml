@@ -1,0 +1,40 @@
+name: report_builder
+path: report_builder
+source_dir: report_builder
+modules:
+job_type: single
+build_dir: build
+envvars:
+  default:
+  playground:
+  npe:
+  production:
+extra_build_files:
+  default:
+  playground:
+  npe:
+    - certs/YandexBankNPERootCA.crt
+  production:
+    - certs/YandexBankProductionRootCA.crt
+extra_build_dirs:
+  default:
+    - spark_jobs/report_builder/configs
+    - spark_jobs/report_builder/dag_generator
+    - spark_jobs/report_builder/templates
+    - spark_jobs/report_builder/sql
+  playground:
+  npe:
+  production:
+    
+
+dag:
+  dag_id: '{job_name}'
+  name: '{job_name}'
+  main_python_file_uri: main.py
+  python_file_uris:
+    - '{job_name}.zip'
+  file_uris:
+    - env_name
+    - '{job_name}.{{dwh_env_name}}.env'
+    - YandexCA.crt
+    - requirements.txt

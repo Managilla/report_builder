@@ -1,0 +1,13 @@
+- name: tab1
+  report_type: dwh2s3
+  sql_query: select 1 as col union select 2
+  s3_sources:  
+    tab1: data/bank_buids/ods/bank_buids/bank_buids/buids/latest
+  s3_path: test/data1
+
+- name: tab2
+  report_type: dwh2s3
+  sql_query: select 1 as col union select 2
+  s3_path: test/data2
+
+

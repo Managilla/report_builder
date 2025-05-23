@@ -1,0 +1,52 @@
+- name: merchants_monthly_solar_abs
+  report_type: dwh2notification
+  s3_sources:
+    main_docum: data/abs-cft/ods/main_docum/snapshots/dt={today}
+    records: data/abs-cft/ods/records/snapshots/dt={today}
+    ac_fin: data/abs-cft/ods/ac_fin/snapshots/dt={today}
+    
+    bo_agreement: data/processing/ods/pay-acq-bo/bo_agreement
+    acc_trial_balance: data/processing/ods/pay-acq-acc/acc_trial_balance
+    acc_account: data/processing/ods/pay-acq-acc/acc_account
+    bo_txn: data/processing/ods/pay-acq-bo/bo_txn_bak # data/processing/ods/pay-acq-bo/bo_txn
+    bo_txn_type: data/processing/ods/pay-acq-bo/bo_txn_type
+    inv_invoice: data/processing/ods/pay-acq-bo/inv_invoice
+    inv_invoice_item: data/processing/ods/pay-acq-bo/inv_invoice_item
+    inv_invoice_entry: data/processing/ods/pay-acq-bo/inv_invoice_entry
+    bo_fee_txn: data/processing/ods/pay-acq-bo/bo_fee_txn
+
+    bo_agreement_settl: data/processing_settl/ods/pay-acq-bo/bo_agreement
+    acc_trial_balance_settl: data/processing_settl/ods/pay-acq-acc/acc_trial_balance/snapshots/dt={today}
+    acc_account_settl: data/processing_settl/ods/pay-acq-acc/acc_account/snapshots/dt={today}
+    bo_txn_settl: data/processing_settl/ods/pay-acq-bo/bo_txn/snapshots/dt={today}
+    bo_txn_type_settl: data/processing_settl/ods/pay-acq-bo/bo_txn_type
+    inv_invoice_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice
+    inv_invoice_item_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice_item
+    inv_invoice_entry_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice_entry/snapshots/dt={today}
+    bo_fee_txn_settl: data/processing_settl/ods/pay-acq-bo/bo_fee_txn/snapshots/dt={today}
+    
+    bo_agreement_cards: data/processing/ods/cards-acq-bo/bo_agreement
+    acc_trial_balance_cards: data/processing/ods/cards-acq-acc/acc_trial_balance
+    acc_account_cards: data/processing/ods/cards-acq-acc/acc_account
+    bo_txn_cards: data/processing/ods/pay-acq-bo/bo_txn_bak # data/processing/ods/cards-acq-bo/bo_txn
+    bo_txn_type_cards: data/processing/ods/cards-acq-bo/bo_txn_type
+    inv_invoice_cards: data/processing/ods/cards-acq-bo/inv_invoice
+    inv_invoice_item_cards: data/processing/ods/cards-acq-bo/inv_invoice_item
+    inv_invoice_entry_cards: data/processing/ods/cards-acq-bo/inv_invoice_entry
+    bo_fee_txn_cards: data/processing/ods/cards-acq-bo/bo_fee_txn
+
+  s3_bucket: dwh-bank-recon-s3-prod
+  filename_pattern: "operations/reconciliation/Сверка для актов по мерчантам Солар и АБС/{DT_SLASH}/Сверка для актов по мерчантам Солар и АБС {DT} ({DTTM}).xlsx" 
+  sql_query: merchants_monthly_solar_abs.sql
+  indicator_type: failure
+  indicator_name: 'merchants_monthly_solar_abs/{DT}'
+  DT: -1
+  attach_type: [email, email_text]
+  attachment:
+    - sql_condition: select 1
+  email:
+    subject: Сверка для актов по мерчантам Солар и АБС за {DT}
+    recipients: 
+      - Tatyana.S.Chilichikhina@bank.yandex.ru
+    body: Сверка для актов по мерчантам Солар и АБС за {DT}, результат во вложении и на S3
+

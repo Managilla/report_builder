@@ -1,0 +1,15 @@
+- name: solar_mistakes_report
+  report_type: gp2s3
+  filename_pattern: "Проблема с качеством данных Солар (ошибки в клиентских данных) {DT}.xlsx"
+  sql_query: select 1 as col union select 2
+  s3_path: test/reports/some_path/some_report
+  s3_bucket: dwh-test
+
+- name: solar_mistakes_report2
+  report_type: gp2s3
+  filename_pattern: "Проблема с качеством данных Солар (ошибки в клиентских данных) {DT}2.xlsx"
+  sql_query: |
+    select *
+    from information_schema.columns
+    limit 2
+  s3_path: test/reports/some_path/some_report

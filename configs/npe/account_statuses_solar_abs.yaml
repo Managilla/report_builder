@@ -1,0 +1,36 @@
+- name: account_statuses_solar_abs
+  report_type: dwh2notification
+  s3_sources:
+    iss_acc_account: data/solar-v2/ods/pay-iss-acc/acc_account/snapshots/dt={today}
+    acq_acc_account: data/processing/ods/pay-acq-acc/acc_account
+    ac_fin: data/abs-cft/ods/ac_fin/snapshots/dt={today}
+    com_status_prd: data/abs-cft/ods/com_status_prd/snapshots/dt={today}
+    account: data/abs-cft/ods/account/snapshots/dt={today}
+  filename_pattern: "operations/reconciliation/Сверка статусов счетов АБС и Солар/{DT_SLASH}/Сверка статусов счетов АБС и Солар {DT} ({DTTM}).xlsx" 
+  sql_query: account_statuses_solar_abs.sql
+  indicator_type: failure
+  indicator_name: 'account_statuses_solar_abs/{DT}'
+  DT: -1
+  attach_type: [email_text]
+  attachment:
+    - sql_condition: select count(*)
+      add_text: account_statuses_solar_abs.j2
+      sql_fill_template: |
+        select report_dt
+          , sum(case when dqc_description='Счёт не найден в АБС' then 1 else 0 end) as cnt_acc_unmatched_abs
+          , sum(case when dqc_description='Счёт не найден в Solar' then 1 else 0 end) as cnt_acc_unmatched_solar
+          , sum(case when dqc_description='Дата открытия в АБС и Solar не совпадает' then 1 else 0 end) as cnt_open_date_unmatched
+          , sum(case when dqc_description='Дата закрытия в АБС и Solar не совпадает' then 1 else 0 end) as cnt_close_date_unmatched
+          , sum(case when dqc_description='Статус в АБС и Solar не совпадает' then 1 else 0 end) as cnt_status_unmatched
+        from result
+        group by report_dt
+  email:
+    subject: Сверка статусов счетов АБС и Солар за {DT} не успешна
+    recipients: 
+      - lerayatsevich@yandex-team.ru
+    body: Сверка статусов счетов АБС и Солар за {DT} не успешна.
+  email_on_failture:
+    subject: Сверка статусов счетов в АБС и Солар за {DT} успешна
+    recipients: 
+      - lerayatsevich@yandex-team.ru
+    body: Сверка статусов счетов АБС и Солар успешна.

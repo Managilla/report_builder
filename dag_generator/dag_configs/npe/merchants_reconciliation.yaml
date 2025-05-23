@@ -1,0 +1,151 @@
+dag_args:
+  schedule: 0 9 1-3 * *
+  doc_md: |
+    Даг сверок по мерчантам
+
+    https://wiki.yandex-team.ru/fintech-team/dwh/modeldannyx/f2ffb074169a/sverka-aktov-dlja-merchantov-po-dogovoram/
+
+    Для запуска сверок по мерчантам, необходимо чтобы отработал таск merchants_reconciliation_table за текущий день
+task_groups:
+  - task_id: merchants_reconciliation_act_data
+    config_file: merchants_reconciliation.yaml
+    reports: merchants_reconciliation_act_data
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      &spark
+      spark.driver.memory: 4g
+      spark.executor.cores: '4'
+      spark.executor.memory: '24g'
+      spark.yarn.maxAppAttempts: '1'
+      spark.dynamicAllocation.maxExecutors: '20'
+      spark.dynamicAllocation.minExecutors: '5'
+      spark.dynamicAllocation.enabled: 'true'
+    sql: 
+      - merchants.sql
+    s3_sensors:
+      - data/abs-cft/ods/main_docum/snapshots/dt={today}
+      - data/processing/ods/pay-acq-bo/bo_txn
+      - data/processing/ods/pay-acq-bo/bo_agreement
+      - data/processing/ods/pay-acq-bo/bo_txn_type
+      - data/processing/ods/pay-acq-bo/inv_invoice
+      - data/processing/ods/pay-acq-bo/inv_invoice_item
+      - data/processing/ods/pay-acq-bo/inv_invoice_entry
+      - data/processing/ods/pay-acq-bo/bo_fee_txn
+      - data/processing/ods/pay-acq-acc/acc_account
+      - data/abs-cft/ods/records/snapshots/dt={today}
+      - data/abs-cft/ods/ac_fin/snapshots/dt={today}
+  - task_id: merchants_reconciliation_act_data_settl
+    config_file: merchants_reconciliation.yaml
+    reports: merchants_reconciliation_act_data_settl
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      <<: *spark
+    sql: 
+      - merchants_settl.sql
+    s3_sensors:
+      - data/processing_settl/ods/pay-acq-bo/bo_txn/snapshots/dt={today}
+      - data/processing_settl/ods/pay-acq-bo/bo_agreement
+      - data/processing_settl/ods/pay-acq-bo/bo_txn_type
+      - data/processing_settl/ods/pay-acq-bo/inv_invoice
+      - data/processing_settl/ods/pay-acq-bo/inv_invoice_item
+      - data/processing_settl/ods/pay-acq-bo/inv_invoice_entry/snapshots/dt={today}
+      - data/processing_settl/ods/pay-acq-bo/bo_fee_txn/snapshots/dt={today}
+      - data/processing_settl/ods/pay-acq-acc/acc_account/snapshots/dt={today}
+      - data/abs-cft/ods/main_docum/snapshots/dt={today}
+      - data/abs-cft/ods/records/snapshots/dt={today}
+      - data/abs-cft/ods/ac_fin/snapshots/dt={today}
+  - task_id: merchants_reconciliation_act_data_cards
+    config_file: merchants_reconciliation.yaml
+    reports: merchants_reconciliation_act_data_cards
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      <<: *spark
+    sql: 
+      - merchants_cards.sql
+    s3_sensors:
+      - data/processing/ods/cards-acq-acc/acc_account
+      - data/processing/ods/cards-acq-bo/bo_agreement
+      - data/processing/ods/cards-acq-bo/bo_txn_type
+      - data/processing/ods/cards-acq-bo/inv_invoice
+      - data/processing/ods/cards-acq-bo/inv_invoice_item
+      - data/processing/ods/cards-acq-bo/inv_invoice_entry
+      - data/processing/ods/cards-acq-bo/bo_fee_txn
+      - data/processing/ods/cards-acq-bo/bo_txn
+      - data/abs-cft/ods/main_docum/snapshots/dt={today}
+      - data/abs-cft/ods/records/snapshots/dt={today}
+      - data/abs-cft/ods/ac_fin/snapshots/dt={today}
+  - task_id: merchants_reconciliation_final
+    config_file: merchants_reconciliation.yaml
+    reports: merchants_reconciliation_final
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      <<: *spark
+    sql: 
+      - merchants_final.sql
+    s3_sensors:
+      - data/processing/ods/pay-acq-bo/bo_agreement
+      - data/processing_settl/ods/pay-acq-bo/bo_agreement
+      - data/processing/ods/cards-acq-bo/bo_agreement
+  - &insert
+    config_file: merchants_reconciliation.yaml
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      spark.yarn.maxAppAttempts: '1'
+    templates: 
+      - Alpha.docx
+      - RasBank.docx
+      - SBP.docx
+      - SBPHelp.docx
+      - Acquiring.docx
+      - AcquiringHelp.docx
+    task_id: pharma_market_ic_acquiring
+    reports: pharma_market_ic_acquiring
+  - <<: *insert
+    task_id: ar-docs
+    reports: ar-docs
+  - <<: *insert
+    task_id: eda-acquiring
+    reports: eda-acquiring
+  - <<: *insert
+    task_id: accdocs_acquiring
+    reports: accdocs_acquiring
+  - <<: *insert
+    task_id: ar-docs_acquiring
+    reports: ar-docs_acquiring
+  - <<: *insert
+    task_id: ic_ar-docs
+    reports: ic_ar-docs
+  - <<: *insert
+    task_id: vassilena
+    reports: vassilena
+  - <<: *insert
+    task_id: ic_acquiring_ar-docs
+    reports: ic_acquiring_ar-docs
+  - <<: *insert
+    task_id: ic_acquiring
+    reports: ic_acquiring
+  - <<: *insert
+    task_id: ic
+    reports: ic
+  - <<: *insert
+    task_id: nastyasedykh
+    reports: nastyasedykh
+  - <<: *insert
+    task_id: not_success
+    reports: not_success
+  - task_id: merchants_acts_details
+    config_file: merchants_reconciliation.yaml
+    reports: merchants_acts_details
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      spark.yarn.maxAppAttempts: '1'
+dag_structure: |
+  [job['merchants_reconciliation_act_data'], job['merchants_reconciliation_act_data_settl'], job['merchants_reconciliation_act_data_cards']] >> job['merchants_reconciliation_final']
+  job['merchants_reconciliation_final'] >> [job['pharma_market_ic_acquiring'], job['ar-docs'], job['eda-acquiring'], job['accdocs_acquiring'], job['ar-docs_acquiring'], job['ic_ar-docs'], job['vassilena'], job['ic_acquiring_ar-docs'], job['ic_acquiring'], job['ic'], job['nastyasedykh']] >> job['not_success'] >> job['merchants_acts_details']
+

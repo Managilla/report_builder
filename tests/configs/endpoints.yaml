@@ -1,0 +1,8 @@
+- endpoint_type_name: S3
+  endpoint_name: s3_default
+  bucket_name: dwh-test
+  lockbox_secret_id: e6q8d7bi1e2iho03l5u0
+- endpoint_type_name: S3
+  endpoint_name: aaaa
+  bucket_name: bbb
+  lockbox_secret_id: ccc

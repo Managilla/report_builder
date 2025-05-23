@@ -1,0 +1,63 @@
+- name: ps_mir
+  report_type: dwh2notification
+  s3_sources:
+    bo_txn: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
+  # s3_bucket:
+  filename_pattern: "test/test/Сверка1 {DT}.csv"
+  sql_query: |
+    select count(*) as cnt
+    from bo_txn
+  indicator_name: 'merchants_compare/{DT}'
+  DT: -1
+  ticket:
+    queue: FINDWHNPE
+    summary:  Сверка fake clears с клирингом за {DT} не успешна
+    description: Расхождения обнаружены, файл во вложении.
+    type:
+      name: Task
+    priority:
+      name: Critical 
+  attach_type: [s3]
+  attachment:
+    - sql_condition: |
+        select count(*)
+        from result
+  email:
+    subject: Сверка fake clears с клирингом за {DT} не успешна
+    recipients: 
+      - lerayatsevich@yandex-team.ru
+    body: Расхождения обнаружены, файл во вложении.
+  email_on_failture:
+    subject: Сверка fake clears с клирингом за {DT} успешна
+    recipients: 
+      - lerayatsevich@yandex-team.ru
+    body: Расхождений не обнаружено.
+
+- name: ps_mir2
+  report_type: dwh2notification
+  filename_pattern: "test/test/Сверка2 {DT}.csv"
+  s3_sources:
+    ac_fin: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
+  indicator_name: 'merchants_compare/2_{DT}'
+  sql_query: |
+    select count(*) as cnt 
+    from ac_fin
+  ticket:
+    queue: FINDWHNPE
+    summary:  Сверка с клирингом за {DT} не успешна
+    description: Расхождения обнаружены, файл во вложении.
+    assignee: lerayatsevich
+    type:
+      name: Task
+    priority:
+      name: Critical 
+
+  attach_type: [s3]
+  attachment:
+      - sql_condition: |
+          select 0
+  email_on_failture:
+    subject: Сверка 2 с клирингом за {DT} успешна
+    recipients: 
+      - lerayatsevich@yandex-team.ru
+    body: Расхождений не обнаружено.

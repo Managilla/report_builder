@@ -1,0 +1,26 @@
+- name: agreements_solar_abs
+  report_type: dwh2notification
+  s3_sources:
+    bo_agreement: data/solar-v2/ods/pay-iss-bo/bo_agreement/snapshots/dt={today}
+    ya_product: data/abs-cft/ods/ya_product/snapshots/dt={today}
+    product: data/abs-cft/ods/product/snapshots/dt={today}
+  filename_pattern: "operations/reconciliation/Сверка договоров АБС и Солар/{DT_SLASH}/Сверка договоров АБС и Солар {DT} ({DTTM}).xlsx" 
+  sql_query: agreements_solar_abs.sql
+  indicator_type: failure
+  indicator_name: 'agreements_solar_abs/{DT}'
+  DT: -1
+  attach_type: [email_text]
+  attachment:
+    - sql_condition: select 1
+      add_text: Количество расхождений = <b>{cnt}</b>, детали в файле на в S3.
+      sql_fill_template: select count(*) as cnt from result
+  email:
+    subject: Результат сверки договоров АБС и Солар за {DT}
+    recipients: 
+      - lerayatsevich@yandex-team.ru
+    body: Сверка договоров АБС и Солар за {DT} завершена.
+  email_on_failture:
+    subject: Сверка договоров АБС и Солар за {DT} пошла не по плану
+    recipients: 
+      - lerayatsevich@yandex-team.ru
+    body: Сверка договоров АБС и Солар пошла не по плану.

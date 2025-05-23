@@ -1,0 +1,34 @@
+- name: abs_tps_zku_payments
+  report_type: dwh2notification
+  s3_sources:
+    main_docum: data/abs-cft/ods/main_docum/snapshots/dt={today}
+    message: data/abs-cft/ods/ya_tps_message/snapshots/dt={today}
+    document: data/abs-cft/ods/document/snapshots/dt={today}
+    smev_message: data/core_tps/ods_hudi/core-tps/smev_message
+
+  filename_pattern: "data/reconciliation/Сверка платежных документов с сообщениями в ГИС ЖКХ/{DT_SLASH}/Сверка платежных документов с сообщениями в ГИС ЖКХ за {DT}.xlsx"
+  sql_query: abs_tps_zku_payments.sql
+  indicator_type: failure
+  indicator_name: 'abs_tps_zku_payments/{DT}'
+
+  DT: -1
+  attach_type: [email]
+  attachment:
+    - sql_condition: select count(*)>0 from result
+  email:
+    subject: Сверка платежных документов с сообщениями в ГИС ЖКХ за {DT} не успешна
+    recipients: 
+      - ipochitalkin@yandex-team.ru
+      - s-a-morgunova@yandex-team.ru    
+      - i-a-shtyrkova@yandex-team.ru   
+      - natatregubova@yandex-team.ru
+    body: Сверка платежных документов с сообщениями в ГИС ЖКХ за {DT} не успешна
+  email_on_failture:
+    subject: Сверка платежных документов с сообщениями в ГИС ЖКХ за {DT} успешна
+    recipients: 
+      - ipochitalkin@yandex-team.ru
+      - s-a-morgunova@yandex-team.ru    
+      - i-a-shtyrkova@yandex-team.ru   
+      - natatregubova@yandex-team.ru
+    body: Расхождений не обнаружено.
+

@@ -1,0 +1,37 @@
+dag_args:
+  schedule: 0 9 * * *
+  doc_md: |
+    Даг сверок ПС Мир
+
+    https://wiki.yandex-team.ru/fintech-team/dwh/modeldannyx/f2ffb074169a/karta-otobrazhenija-obekta-vitrina-sverki-ps-mir-n-23-10/
+    
+
+task_groups:
+
+  - task_id: card_transactions
+    config_file: ps_mir.yaml
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    reports: card_transactions
+    spark_params:
+      spark.driver.memory: 4g
+      spark.executor.cores: '4'
+      spark.executor.memory: '24g'
+      spark.yarn.maxAppAttempts: '1'
+      spark.dynamicAllocation.maxExecutors: '20'
+      spark.dynamicAllocation.minExecutors: '5'
+      spark.dynamicAllocation.enabled: 'true'
+    sql: 
+      - ps_mir_card_transactions.sql
+    s3_sensors:
+      - data/solar-v2/raw/pay-iss-bo/bo_txn_latest
+      - data/solar-v2/ods/pay-iss-bo/bo_txn_type/snapshots/dt={today}
+      - data/solar-v2/ods/pay-iss-bo/bo_accessor/snapshots/dt={today}
+      - data/solar-v2/ods/pay-iss-bo/bo_accessor_type/snapshots/dt={today}
+      - data/solar-v2/ods/pay-iss-bo/bo_agreement/snapshots/dt={today}
+      - data/solar-v2/ods/pay-iss-bo/rt_system/snapshots/dt={today}
+      - data/abs-cft/ods/product/snapshots/dt={today}
+      - data/abs-cft/ods/hoz_op_acc/snapshots/dt={today}
+      - data/abs-cft/ods/ya_product/snapshots/dt={today}
+    s3_indicator: 'users/indicator/ps_mir_card_transactions_{DT-2}'
+

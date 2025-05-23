@@ -1,0 +1,34 @@
+dag_args:
+  schedule: 0 2 * * *
+  doc_md: |
+    Даг сверок статусов счетов АБС и Солар
+
+    https://wiki.yandex-team.ru/fintech-team/core-banking-system/zadachi/integrcijasdwh/dqc/
+    Даг должен отрабатывать один раз в день.
+
+    [Действия при падении дага](https://wiki.yandex-team.ru/fintech-team/dwh/sverki/dejjstvija-pri-padenii-report-builder-instrument-d/)
+
+task_groups:
+  - task_id: account_statuses_solar_abs
+    config_file: account_statuses_solar_abs.yaml
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      spark.driver.memory: 4g
+      spark.executor.cores: '4'
+      spark.executor.memory: '24g'
+      spark.yarn.maxAppAttempts: '1'
+      spark.dynamicAllocation.maxExecutors: '20'
+      spark.dynamicAllocation.minExecutors: '5'
+      spark.dynamicAllocation.enabled: 'true'
+    sql: 
+      - account_statuses_solar_abs.sql
+    templates:
+      - account_statuses_solar_abs.j2
+    s3_sensors:
+      - data/solar-v2/ods/pay-iss-acc/acc_account/snapshots/dt={today}
+      - data/processing/ods/pay-acq-acc/acc_account
+      - data/abs-cft/ods/ac_fin/snapshots/dt={today}
+      - data/abs-cft/ods/com_status_prd/snapshots/dt={today}
+      - data/abs-cft/ods/account/snapshots/dt={today}
+    s3_indicator: 'users/indicator/account_statuses_solar_abs_{DT-1}'

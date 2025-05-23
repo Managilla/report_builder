@@ -1,0 +1,46 @@
+- name: merchants_payments
+  report_type: dwh2notification
+  s3_sources:
+    main_docum_inc: data/abs-cft/raw/main_docum/inc
+    records_inc: data/abs-cft/raw/records/inc
+    ac_fin: data/abs-cft/ods/ac_fin/snapshots/dt={today}
+    ya_merchant: data/abs-cft/ods/ya_merchant/snapshots/dt={today}
+    hoz_op_acc: data/abs-cft/ods/hoz_op_acc/snapshots/dt={today}
+    client: data/abs-cft/ods/client/snapshots/dt={today}
+    ud_code_name: data/abs-cft/ods/ud_code_name/snapshots/dt={today}
+    dict_calendar_cft: data/dds/dict/dict_calendar_cft/valid_to_date=2100-12-31
+  s3_bucket: dwh-bank-recon-s3-prod
+  filename_pattern: "operations/reconciliation/Сверка возмещений по выплатам мерчантам/{DT_SLASH}/Сверка возмещений по выплатам мерчантам {DT} ({DTTM}).xlsx" 
+  sql_query: merchants_daily.sql
+  indicator_type: failure
+  indicator_name: 'merchants_compare/{DT}'
+  DT: -1
+  ticket:
+    queue: SVERKIDWH
+    summary:  Сверка возмещений по выплатам мерчантам за {DT} не успешна
+    description: Расхождения обнаружены, файл в почте.
+    assignee: chilichikhina
+    type:
+      name: Task
+    priority:
+      name: Critical 
+  attach_type: [email]
+  attachment:
+    - sql_condition: select sum(diff_amount)!=0 from result
+  email:
+    subject:  Сверка возмещений по выплатам мерчантам за {DT} не успешна
+    recipients: 
+      - Tatyana.S.Chilichikhina@bank.yandex.ru
+      - Elena.A.Ovechkina@bank.yandex.ru
+      - Dmitry.A.Ovechkin@bank.yandex.ru
+      - Liudmila.I.Stepanova@bank.yandex.ru
+    body: Расхождения обнаружены, файл во вложении.
+  email_on_failture:
+    subject: Сверка возмещений по выплатам мерчантам за {DT} успешна
+    recipients: 
+      - Tatyana.S.Chilichikhina@bank.yandex.ru
+      - Elena.A.Ovechkina@bank.yandex.ru
+      - Dmitry.A.Ovechkin@bank.yandex.ru
+      - Liudmila.I.Stepanova@bank.yandex.ru
+      - lerayatsevich@yandex-team.ru
+    body: Расхождений не обнаружено.

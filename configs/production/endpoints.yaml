@@ -1,0 +1,10 @@
+- endpoint_type_name: S3
+  endpoint_name: s3_default
+  bucket_name: dwh-analytics-s3-prod
+  lockbox_secret_id: e6q23tkpai9k6i2pruo7
+- endpoint_type_name: S3
+  endpoint_name: s3_analytics_sa
+  bucket_name: dwh-analytics-s3-prod
+  lockbox_secret_id: e6qfgfjjtudb5e5mf4j9
+
+  

@@ -1,0 +1,30 @@
+dag_args:
+  schedule: 0 1 * * *
+  doc_md: |
+    Даг сверок АБС и Солар
+
+    https://wiki.yandex-team.ru/fintech-team/dwh/modeldannyx/f2ffb074169a/sverka-vozmeshhenijj-po-vyplatam-merchantam-7f964b/
+    Даг должен отрабатывать один раз в день.
+
+    [Действия при падении дага](https://wiki.yandex-team.ru/fintech-team/dwh/sverki/dejjstvija-pri-padenii-report-builder-instrument-d/)
+
+task_groups:
+  - task_id: agreements_solar_abs
+    config_file: agreements_solar_abs.yaml
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      spark.driver.memory: 4g
+      spark.executor.cores: '4'
+      spark.executor.memory: '24g'
+      spark.yarn.maxAppAttempts: '1'
+      spark.dynamicAllocation.maxExecutors: '20'
+      spark.dynamicAllocation.minExecutors: '5'
+      spark.dynamicAllocation.enabled: 'true'
+    sql: 
+      - agreements_solar_abs.sql
+    s3_sensors:
+      - data/solar-v2/ods/pay-iss-bo/bo_agreement/snapshots/dt={today}
+      - data/abs-cft/ods/ya_product/snapshots/dt={today}
+      - data/abs-cft/ods/product/snapshots/dt={today}
+    s3_indicator: 'users/indicator/agreements_solar_abs_{DT-1}'
