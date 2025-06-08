@@ -1,0 +1,41 @@
+- name: abs_cft_core_accounts
+  report_type: dwh2notification
+  s3_sources:
+    product: data/abs-cft/ods/product/snapshots/dt={today}
+    depn: data/abs-cft/ods/depn/snapshots/dt={today}
+    vid_deposit: data/abs-cft/ods/vid_deposit/snapshots/dt={today}
+    com_status_prd: data/abs-cft/ods/com_status_prd/snapshots/dt={today}
+    agreement: data/core_savings_account/ods/core_savings_account/public/agreement/latest
+  s3_bucket: dwh-bank-recon-s3-prod
+
+  
+  filename_pattern: "data/reconciliation/Сверка по договорам ABS-CFT/{DT_SLASH}/Сверка по договорам ABS-CFT за {DT}.xlsx"
+  sql_query: abs_cft_core_agreements.sql
+  indicator_type: failure
+  indicator_name: 'abs_cft_core_agreements/{DT}'
+  DT: -1
+  attach_type: [email, email_text]
+  attachment:
+    - sql_condition: select count(*)>0 from result
+      add_text: abs_cft_core_agreements.j2
+      sql_fill_template: |
+        select 
+          sum (case when dif_type = 'lost_ftc' then 1 else 0 end) as cnt_lost_ftc
+          ,sum (case when dif_type = 'lost_cft' then 1 else 0 end) as cnt_lost_cft
+          ,sum (case when dif_type = 'dif_status' then 1 else 0 end) as cnt_dif_status
+          ,sum (case when dif_type = 'dif_open_date' then 1 else 0 end) as cnt_dif_open_date
+          ,sum (case when dif_type = 'dif_close_date' then 1 else 0 end) as cnt_dif_close_date
+          ,sum (case when dif_type = 'dif_open_null' then 1 else 0 end) as cnt_dif_open_null
+        from result
+  email:
+    subject: Сверка по договорам ABS-CFT за {DT} не успешна
+    recipients: 
+      - ipochitalkin@yandex-team.ru
+      - deposit@bank.yandex.ru
+    body: Сверка по договорам ABS-CFT за {DT} не успешна
+  email_on_failture:
+    subject: Сверка по договорам ABS-CFT за {DT} успешна
+    recipients: 
+      - ipochitalkin@yandex-team.ru
+      - deposit@bank.yandex.ru
+    body: Расхождений не обнаружено.

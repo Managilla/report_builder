@@ -6,5 +6,3 @@
   endpoint_name: s3_analytics_sa
   bucket_name: dwh-analytics-s3-prod
   lockbox_secret_id: e6qfgfjjtudb5e5mf4j9
-
-  

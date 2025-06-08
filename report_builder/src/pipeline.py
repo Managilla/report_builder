@@ -51,6 +51,11 @@ class Attachment(BaseModel):
     add_text: Optional[str] = Field(default=None)
 
 
+class GPTable(BaseModel):
+    table_name: str
+    table_schema: str
+
+
 @runtime_checkable
 class Report(Protocol):
 
@@ -69,7 +74,7 @@ def get_jinja(filename, filler: Optional[Dict] = None) -> str:
     return template.render(**filler or {})
 
 
-def dates_dict(report: Report) -> str:
+def dates_dict(report: Report, dttm=pendulum.now().strftime("%Y-%m-%d %H_%M_%S")) -> str:
     frm = {}
 
     months = {
@@ -98,7 +103,7 @@ def dates_dict(report: Report) -> str:
     frm['CYR_DT_1ST'] = pendulum.today().add(days=report.DT).format('"01" MMMM YYYY', locale='ru')
     frm['DT'] = pendulum.today().add(days=report.DT).to_date_string()
     frm['DT_SLASH'] = pendulum.today().add(days=report.DT).format('YYYY/MM/DD')
-    frm['DTTM'] = pendulum.now().strftime("%Y-%m-%d %H_%M_%S")
+    frm['DTTM'] = dttm
     return frm
 
 
@@ -116,6 +121,13 @@ def storage_options(context: ReportContext) -> Dict:
 def str_format(string: str, report: Report, filler: Dict = None, replace_slash=None) -> str:
     frm = {}
     frm_dt = dates_dict(report)
+
+    # Добавляем кастомные параметры дат если они есть
+    if hasattr(report, 'date_params') and report.date_params:
+        for param_name, param_value in report.date_params.items():
+            # Преобразуем даты в формат to_date() для Spark SQL
+            frm[param_name] = f"to_date('{param_value}')"
+
     if filler:
         frm = {**frm, **filler}
     if replace_slash and frm:
@@ -176,6 +188,36 @@ def write_single_csv(
     if bucket == proc.bucket or bucket is None:
         for obj in proc.s3bucket._bucket.objects.filter(Prefix=tmp_path):
             obj.delete()
+
+
+def write_to_gp(report: Report, context: ReportContext, df: DataFrame):
+    dd = dates_dict(report)
+    context.logger.info('Started writing to GP')
+    df_temp = df.withColumn('processing_dttm', lit(dd['DTTM'])).withColumn('report_dt', lit(str(dd['DT'])))
+    context.processor.write_to_gp(
+        df_temp,
+        report.gp_table.table_schema,
+        report.gp_table.table_name,
+        use_schema_writer=True,
+    )
+    context.logger.info('Finished writing to GP')
+
+
+def register_report_readiness(report: Report, context: ReportContext):
+    dd = dates_dict(report)
+    context.logger.info('Started register report in normative report meta table')
+    context.gp_processor.execute_statement(
+        f'''
+        SELECT r_report_robot.md_register_report_calculation(
+            '{report.name}',
+            ARRAY[
+                r_report_robot.md_named_variant('p_processing_dttm','{dd['DTTM']}'),
+                r_report_robot.md_named_variant('p_report_dt','{str(dd['DT'])}')
+            ]
+        )
+    '''
+    )
+    context.logger.info('Finished register report in normative report meta table')
 
 
 def send_email(report: Report, context: ReportContext, attachments: List[str]) -> None:
@@ -280,6 +322,9 @@ class dwh2notificationReport(BaseModel):
     attachment: Optional[List[Attachment]] = Field(default=None)
     email_on_failture: Optional[Dict] = Field(default=None)
     email: Optional[Dict] = Field(default=None)
+    date_params: Optional[Dict[str, str]] = Field(default=None)  # Новое поле для параметров дат
+    gp_table: Optional[GPTable] = Field(default=None)
+    include_in_normative_reports: Optional[bool] = Field(default=False)
 
     @field_validator('report_type')
     @classmethod
@@ -316,7 +361,12 @@ class dwh2notificationReport(BaseModel):
             if self.email_on_failture:
                 context.logger.info('Email on failure will be sent')
                 self.send_email(context)
+
+        if self.gp_table:
+            write_to_gp(self, context, df)
         df.unpersist()
+        if self.include_in_normative_reports:
+            register_report_readiness(self, context)
 
     def get(self, context: ReportContext):
         for name, path in self.s3_sources.items():
@@ -478,6 +528,8 @@ class dwh2s3Report(BaseModel):
     sql_query: str
     s3_path: str
     DT: int = Field(default=0)
+    date_params: Optional[Dict[str, str]] = Field(default=None)  # Новое поле для параметров дат
+    include_timestamp: bool = Field(default=False)  # Новое поле для включения timestamp в путь
 
     @field_validator('report_type')
     @classmethod
@@ -497,7 +549,14 @@ class dwh2s3Report(BaseModel):
             context.processor.read(path.format(today=today), format='parquet').createOrReplaceTempView(name)
 
     def put(self, context: ReportContext, df: DataFrame) -> None:
-        context.processor.write(df, self.s3_path, mode='overwrite', repartition_num_partitions=5)
+        # Если включен timestamp, добавляем его к пути
+        final_path = self.s3_path
+        if self.include_timestamp:
+            timestamp = pendulum.now().format('YYYYMMDD_HHmmss')
+            # Добавляем timestamp как подпапку для сохранения историчности
+            final_path = os.path.join(self.s3_path, f'dt={timestamp}')
+
+        context.processor.write(df, final_path, mode='overwrite', repartition_num_partitions=5)
 
 
 class ReportList:

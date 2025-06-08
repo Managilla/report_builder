@@ -68,7 +68,7 @@ join acc_account_settl a on a.account_number = MAIN_DOCUM_.C_NUM_DT and a.audit_
 join bo_agreement_settl agr on a.agreement_id = agr.id
 where STATE_ID = 'PROV'
 and C_NUM_DT like '30232810_1%'
-    and C_DATE_PROV >= to_date(date_trunc('month', current_date) )  -- to_date('2025-03-31') + 1
+--     and C_DATE_PROV >= to_date(date_trunc('month', current_date))  -- to_date('2025-03-31') + 1
     and C_DATE_PROV >= to_date(date_trunc('month', current_date - interval '1 month')) -- to_date('2025-03-01')
     and C_DATE_PROV < to_date(date_trunc('month', current_date))  -- to_date('2025-03-31') + 1
 and (   C_NAZN like 'Переводы физических лиц согласно Реестру%'                       
@@ -88,7 +88,7 @@ and tt.code  in ('adjDebit')
 and t.id in (select txn_id from inv_invoice_entry_settl iie where iie.invoice_item_id  in 
              (select id from inv_invoice_item_settl iii where iii.invoice_id in 
               (select id from inv_invoice_settl ii where opening_date between to_date(date_trunc('month', current_date - interval '1 month')) -- to_date('2025-03-01') 
-              and to_date(date_trunc('month', current_date)) --to_date('2025-03-31')
+              and to_date(date_trunc('month', current_date) - interval '1 day') --to_date('2025-03-31')
         )))
 group by ttype, agr.agr_number
 
@@ -103,7 +103,7 @@ and tt.code  in ('adjCredit')
 and t.id in (select txn_id from inv_invoice_entry_settl iie where iie.invoice_item_id  in 
              (select id from inv_invoice_item_settl iii where iii.invoice_id in 
               (select id from inv_invoice_settl ii where opening_date between to_date(date_trunc('month', current_date - interval '1 month')) -- to_date('2025-03-01')
-              and to_date(date_trunc('month', current_date)) -- to_date('2025-03-31')
+              and to_date(date_trunc('month', current_date) - interval '1 day') -- to_date('2025-03-31')
       )))
 group by ttype, agr.agr_number
 

@@ -1,0 +1,26 @@
+dag_args:
+  schedule: 0 8 * * *
+  doc_md: |
+    Даг для расчёта Оборотно-Сальдовой Ведомости за день
+task_groups:
+  - task_id: osv_account_balance_report
+    config_file: osv_account_balance_report.yaml
+    reports: osv_account_balance_report
+    endpoint_file: endpoints.yaml
+    s3_endpoint: s3_analytics_sa
+    spark_params:
+      &spark
+      spark.driver.memory: 4g
+      spark.executor.cores: '4'
+      spark.executor.memory: '24g'
+      spark.yarn.maxAppAttempts: '1'
+      spark.dynamicAllocation.maxExecutors: '20'
+      spark.dynamicAllocation.minExecutors: '5'
+      spark.dynamicAllocation.enabled: 'true'
+    sql:
+      - osv_account_balance_report.sql
+    s3_sensors:
+      - data/abs-cft/ods/records/snapshots/dt={today}
+      - data/abs-cft/ods/ac_fin/latest
+      - data/abs-cft/ods/journal_op_days/latest
+      - data/cdm/account_balance

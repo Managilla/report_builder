@@ -1,0 +1,12 @@
+- name: osv_account_balance_report
+  report_type: dwh2s3
+  sql_query: osv_account_balance_report.sql
+  s3_sources:
+    abs_records: data/abs-cft/ods/records/snapshots/dt={today}
+    abs_acc: data/abs-cft/ods/ac_fin/latest
+    journal_op_days: data/abs-cft/ods/journal_op_days/latest
+    account_balance: data/cdm/account_balance
+  s3_path: data/temp/osv_account_balance
+  include_timestamp: true
+  date_params:
+    cutoff_day: "2025-04-01"

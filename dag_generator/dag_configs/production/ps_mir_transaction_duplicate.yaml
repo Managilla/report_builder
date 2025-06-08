@@ -25,7 +25,7 @@ task_groups:
     sql: 
       - ps_mir_transaction_duplicate.sql
     s3_sensors:
-      - data/solar-v2/raw/pay-iss-bo/bo_txn_latest
+      - data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
       - data/solar-v2/ods/pay-iss-bo/bo_txn_type/snapshots/dt={today}
       - data/solar-v2/ods/pay-iss-bo/bo_accessor/snapshots/dt={today}
       - data/solar-v2/ods/pay-iss-bo/bo_accessor_type/snapshots/dt={today}

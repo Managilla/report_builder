@@ -22,8 +22,8 @@
     bo_txn_type_settl: data/processing_settl/ods/pay-acq-bo/bo_txn_type
     inv_invoice_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice
     inv_invoice_item_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice_item
-    inv_invoice_entry_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice_entry/snapshots/dt={today}
-    bo_fee_txn_settl: data/processing_settl/ods/pay-acq-bo/bo_fee_txn/snapshots/dt={today}
+    inv_invoice_entry_settl: data/processing_settl/ods/pay-acq-bo/inv_invoice_entry/snapshot_latest
+    bo_fee_txn_settl: data/processing_settl/ods/pay-acq-bo/bo_fee_txn/snapshot_latest
     
     bo_agreement_cards: data/processing/ods/cards-acq-bo/bo_agreement
     acc_trial_balance_cards: data/processing/ods/cards-acq-acc/acc_trial_balance

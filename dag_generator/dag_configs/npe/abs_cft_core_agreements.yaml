@@ -1,0 +1,29 @@
+dag_args:
+  schedule: 0 8 * * *
+  doc_md: |
+    Сверка по накопительным договорам ABS-CFT
+
+
+task_groups:
+  - task_id: abs_cft_core_agreements
+    config_file: abs_cft_core_agreements.yaml
+    endpoint_file: endpoints.yaml
+    spark_params:
+      spark.driver.memory: 4g
+      spark.executor.cores: '4'
+      spark.executor.memory: '24g'
+      spark.yarn.maxAppAttempts: '1'
+      spark.dynamicAllocation.maxExecutors: '20'
+      spark.dynamicAllocation.minExecutors: '5'
+      spark.dynamicAllocation.enabled: 'true'
+    sql: 
+      - abs_cft_core_agreements.sql
+    templates:
+      - abs_cft_core_agreements.j2
+    s3_sensors:
+      - data/abs-cft/ods/product/latest
+      - data/abs-cft/ods/depn/snapshots/dt={today}
+      - data/abs-cft/ods/vid_deposit/snapshots/dt={today}
+      - data/abs-cft/ods/com_status_prd/snapshots/dt={today}
+      - data/core_savings_account/ods/core_savings_account/public/agreement/latest
+    s3_indicator: 'users/indicator/abs_cft_core_agreements{DT-1}'

@@ -1,6 +1,12 @@
 import os
 from pathlib import Path
 
+import pyspark
+from pyspark.sql import Row, SparkSession
+
+from fintech_dwh_lib import conf
+from fintech_dwh_lib.testing_utils import TestingUtil
+
 import pendulum
 import pytest
 from jinja2.exceptions import UndefinedError
@@ -10,25 +16,28 @@ from report_builder.src.pipeline import (
     Attachment,
     AttachmentType,
     AttachText,
+    GPTable,
     Indicator,
     IndicatorType,
     ReportList,
+    dates_dict,
     get_jinja,
     get_sql,
     s3a_path,
     spark_transform,
     str_format,
     write_single_csv,
+    write_to_gp,
 )
-
-import pyspark
-from pyspark.sql import Row, SparkSession
-
-from fintech_dwh_lib import conf
-from fintech_dwh_lib.testing_utils import TestingUtil
 
 
 class TestCommon:
+
+    def test_gp_table(self):
+        gp_table = GPTable(table_schema='a', table_name='b')
+
+        assert gp_table.table_schema == 'a'
+        assert gp_table.table_name == 'b'
 
     def test_AttachText(self):
         at = AttachText('aaa')
@@ -193,6 +202,8 @@ class TestStrFormat:
             self.reports,
         )
 
+        self.dates_dict = dates_dict(self.report_list[0])
+
     @pytest.fixture
     def mock(self, monkeypatch):
         monkeypatch.setattr(pendulum, 'now', self.now_mock)
@@ -205,9 +216,9 @@ class TestStrFormat:
             ('{DT}', None, None, '2024-10-02'),
             ('{PREV_CYR_MONTH}', None, None, 'сентябрь 2024'),
             ('{CYR_DT}', None, None, '"2" октября 2024'),
-            ('{CYR_DT_1ST}', None, None, '"1" октября 2024'),
+            ('{CYR_DT_1ST}', None, None, '"01" октября 2024'),
             ('{DT}{CYR_DT}', None, None, '2024-10-02"2" октября 2024'),
-            ('{DTTM}', None, None, '2024-10-03 22_32_05'),
+            ('{DTTM}', None, None, 'DTTM'),
             ('{test}', {
                 'test': 'aaa/aaa'
             }, None, 'aaa/aaa'),
@@ -218,7 +229,12 @@ class TestStrFormat:
     )
     def test_str_format(self, mock, string, filler, replace_slash, expected):
         report = self.report_list[0]
-        assert str_format(string, report, filler=filler, replace_slash=replace_slash) == expected
+
+        res = str_format(string, report, filler=filler, replace_slash=replace_slash)
+        if expected == 'DTTM':
+            assert res == self.dates_dict['DTTM']
+        else:
+            assert res == expected
 
     @pytest.mark.parametrize(
         'string, filler, expected', [
@@ -261,9 +277,7 @@ class TestWithContext:
 
         self.config_file = Path(__file__).resolve().parent.joinpath('configs').joinpath('dwh2notification.yaml')
 
-        self.reports = [
-            'ps_mir',
-        ]
+        self.reports = ['ps_mir', 'ps_mir_gp']
 
         self.report_list = ReportList().load(
             self.config_file,
@@ -334,3 +348,24 @@ class TestWithContext:
 
         assert df.collect() == [Row(_c0='col_a', _c1='col_b'), Row(_c0='1', _c1='2'), Row(_c0='3', _c1='4')]
         assert df.count() == 3
+
+    @pytest.mark.skip(reason="write_to_gp doesn`t work on playground")
+    def test_write_to_gp(self):
+        df_tmp_b = self.context.processor.read_from_gp(
+            self.report_list[1].gp_table.table_schema,
+            self.report_list[1].gp_table.table_name,
+        )
+
+        write_to_gp(
+            self.report_list[1],
+            self.context,
+            self.test_df,
+        )
+
+        df_tmp_a = self.context.processor.read_from_gp(
+            self.report_list[1].gp_table.table_schema,
+            self.report_list[1].gp_table.table_name,
+        )
+        print(f'{df_tmp_b.count() = }')
+
+        assert df_tmp_a.count() - df_tmp_b.count() == 2

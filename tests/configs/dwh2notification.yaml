@@ -33,6 +33,26 @@
       - lerayatsevich@yandex-team.ru
     body: Расхождений не обнаружено.
 
+- name: ps_mir_gp
+  report_type: dwh2notification
+  s3_sources:
+    bo_txn: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
+  # s3_bucket:
+  filename_pattern: "test/test/Сверка1 {DT}.csv"
+  sql_query: |
+    select count(*) as cnt
+    from bo_txn
+  indicator_name: 'merchants_compare/{DT}'
+  DT: -1
+  attachment:
+    - sql_condition: |
+        select count(*)
+        from result
+  gp_table:
+    table_name: test_write2gp
+    table_schema: public
+
+
 - name: ps_mir2
   report_type: dwh2notification
   filename_pattern: "test/test/Сверка2 {DT}.csv"

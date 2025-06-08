@@ -110,14 +110,14 @@ where category = 'A'
     union
     select * from acc_unmatched
 )
-select to_date("{DT}", "yyyy-MM-dd") as report_dt
-    , ABS_account
-    , SOL_account
-    , ABS_date_open
-    , SOL_date_open
-    , ABS_date_close
-    , SOL_date_close
-    , ABS_acc_status
-    , SOL_status
+select to_date("{DT}", "yyyy-MM-dd") as report_date
+    , abs_account
+    , sol_account
+    , abs_date_open
+    , sol_date_open
+    , abs_date_close
+    , sol_date_close
+    , abs_acc_status
+    , sol_status
     , dqc_description
 from final

@@ -53,8 +53,8 @@ task_groups:
       - data/processing_settl/ods/pay-acq-bo/bo_txn_type
       - data/processing_settl/ods/pay-acq-bo/inv_invoice
       - data/processing_settl/ods/pay-acq-bo/inv_invoice_item
-      - data/processing_settl/ods/pay-acq-bo/inv_invoice_entry/snapshots/dt={today}
-      - data/processing_settl/ods/pay-acq-bo/bo_fee_txn/snapshots/dt={today}
+      - data/processing_settl/ods/pay-acq-bo/inv_invoice_entry/snapshot_latest
+      - data/processing_settl/ods/pay-acq-bo/bo_fee_txn/snapshot_latest
       - data/processing_settl/ods/pay-acq-acc/acc_account/snapshots/dt={today}
       - data/abs-cft/ods/main_docum/snapshots/dt={today}
       - data/abs-cft/ods/records/snapshots/dt={today}

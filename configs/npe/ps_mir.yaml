@@ -1,7 +1,7 @@
 - name: fake_clears
   report_type: dwh2notification
   s3_sources:
-    bo_txn: data/solar-v2/raw/pay-iss-bo/bo_txn_latest
+    bo_txn: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
     bo_txn_type: data/solar-v2/ods/pay-iss-bo/bo_txn_type/snapshots/dt={today}
     bo_accessor: data/solar-v2/ods/pay-iss-bo/bo_accessor/snapshots/dt={today}
     bo_accessor_type: data/solar-v2/ods/pay-iss-bo/bo_accessor_type/snapshots/dt={today}
@@ -42,11 +42,13 @@
     recipients: 
       - lerayatsevich@yandex-team.ru
     body: Расхождений не обнаружено.
-
+  gp_table:
+    table_name: ps_mir_fake_clears
+    table_schema: reconciliation
 - name: transaction_duplicate
   report_type: dwh2notification
   s3_sources:
-    bo_txn: data/solar-v2/raw/pay-iss-bo/bo_txn_latest
+    bo_txn: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
     bo_txn_type: data/solar-v2/ods/pay-iss-bo/bo_txn_type/snapshots/dt={today}
     bo_accessor: data/solar-v2/ods/pay-iss-bo/bo_accessor/snapshots/dt={today}
     bo_accessor_type: data/solar-v2/ods/pay-iss-bo/bo_accessor_type/snapshots/dt={today}
@@ -74,11 +76,14 @@
   email_on_failture:
     <<: *insert_email_on_failture
     subject: Сверка на дубли транзакций за {DT} успешна
+  gp_table:
+    table_name: ps_mir_transaction_duplicate
+    table_schema: reconciliation
 
 - name: card_transactions
   report_type: dwh2notification
   s3_sources:
-    bo_txn: data/solar-v2/raw/pay-iss-bo/bo_txn_latest
+    bo_txn: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
     bo_txn_type: data/solar-v2/ods/pay-iss-bo/bo_txn_type/snapshots/dt={today}
     bo_accessor: data/solar-v2/ods/pay-iss-bo/bo_accessor/snapshots/dt={today}
     bo_accessor_type: data/solar-v2/ods/pay-iss-bo/bo_accessor_type/snapshots/dt={today}
@@ -105,6 +110,9 @@
   email_on_failture:
     <<: *insert_email_on_failture
     subject: Сверка по карточным транзакциям с документами АБС за {DT} успешна
+  gp_table:
+    table_name: ps_mir_card_transactions
+    table_schema: reconciliation
 
 - name: credit_transactions
   report_type: dwh2notification
@@ -137,3 +145,7 @@
   email_on_failture:
     <<: *insert_email_on_failture
     subject: Сверка по кредитным транзакциям с документами АБС за {DT} успешна
+  gp_table:
+    table_name: ps_mir_credit_transactions
+    table_schema: reconciliation
+    

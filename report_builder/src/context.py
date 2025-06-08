@@ -1,10 +1,10 @@
 import sys
 from dataclasses import dataclass
 from logging import Logger
-from typing import Optional
 
 from fintech_dwh_lib import conf
 from fintech_dwh_lib.events_kafka import KafkaEventsSender
+from fintech_dwh_lib.greenplum.dwh_sqlalchemy import DwhGpSqlalchemyProcessor
 from fintech_dwh_lib.logging import build_logger_message_template, getLogger
 from fintech_dwh_lib.spark import S3SparkProcessor, get_job_id
 from fintech_dwh_lib.spark.conf import spark_conf
@@ -26,6 +26,7 @@ class ReportContext:
         self.job_name = job_name
         self._set_logger()
         self._set_spark_proc(s3_ep)
+        self._set_gp_proc()
 
     def _get_spark_params(self):
         return spark_conf
@@ -45,4 +46,11 @@ class ReportContext:
             spark_conf=self._get_spark_params(),
             gp_lockbox_secret_id=conf.gp.GP_SECRET_ID,
             events_kafka=KafkaEventsSender(self.logger),
+        )
+
+    def _set_gp_proc(self):
+        self.gp_processor = DwhGpSqlalchemyProcessor(
+            job_id=get_job_id(),
+            job_name=self.job_name,
+            use_schema_writer=True,
         )

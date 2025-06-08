@@ -33,7 +33,7 @@ with smev as (
 , df_abs as (
     select 
         md.id, 
-        md.C_DATE_DOC, 
+        coalesce(md.C_DATE_PROV, md.C_DATE_DOC) as C_DATE_DOC, 
         md.C_DOCUMENT_NUM, 
         md.STATE_ID, 
         md.`C_KL_DT#2#1`, 
@@ -50,8 +50,8 @@ with smev as (
         on (md.id = doc.id)
     left join message msg
         on (md.id = msg.c_docum_id)
-    where md.C_DATE_DOC >= current_date() - interval '31 days'
-        and md.C_DATE_DOC < current_date()
+    where coalesce(md.C_DATE_PROV, md.C_DATE_DOC) >= current_date() - interval '31 days'
+        and coalesce(md.C_DATE_PROV, md.C_DATE_DOC) < current_date()
 )
 
 --Объединяем данные ABS и core-tps
