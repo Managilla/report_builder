@@ -809,7 +809,7 @@
       condition as `Сумма сошлась`
     from merchants_reconciliation
   indicator_type: none
-  attach_type: [email, email_text]
+  attach_type: [email, email_text, ticket]
   attachment:
     - sql_condition: select 1
       add_text: Количество сформированных актов за {DT} = {cnt} (из них {success_cnt} успешны, {failure_cnt} не успешны), детали в файле и на S3.
@@ -823,3 +823,15 @@
     recipients: 
       - lerayatsevich@yandex-team.ru
     body: Добрый день!
+  ticket:
+    queue: FINDWHNPE
+    summary: Ежемесячные акты банка по эквайрингу
+    description: Выгрузка во вложении.
+    assignee: lerayatsevich
+    followers:
+      - lerayatsevich
+    type:
+      name: Task
+    priority:
+      name: Critical 
+

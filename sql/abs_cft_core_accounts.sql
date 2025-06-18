@@ -164,7 +164,7 @@ select
         else null
     end as dif_type,
     coalesce(C_MAIN_V_ID, number) as account,
-    C_CODE as cft_status,
+    cft2ftc_status as cft_status,
     status as ftc_status,
     cft_activation_date,
     ftc_activation_date,

@@ -30,4 +30,4 @@ task_groups:
       - data/core_savings_account/ods/core_savings_account/public/account/latest
       - data/core_registers_data/ods/core-registers-data/operations/latest
       - data/cdm/account_balance
-    s3_indicator: 'users/indicator/abs_cft_core_accounts{DT-1}'
+    s3_indicator: 'users/indicator/abs_cft_core_accounts{DT}'

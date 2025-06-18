@@ -29,3 +29,7 @@
     recipients: 
       - lerayatsevich@yandex-team.ru
     body: Сверка договоров АБС и Солар пошла не по плану.
+  gp_table:
+    table_name: agreements_solar_abs
+    table_schema: reconciliation
+  include_in_normative_reports: True

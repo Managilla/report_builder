@@ -24,4 +24,4 @@ task_groups:
     s3_sensors:
       - data/core_auto_topup/ods_v2/core_auto_topup/public/actions_history/latest
       - data/core_auto_topup/ods_v2/core_auto_topup/public/autofund_actions_history/latest
-    s3_indicator: 'users/indicator/auto_funding_{DT-1}'
+    s3_indicator: 'users/indicator/auto_funding_{DT}'

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fintech_dwh_lib.airflow_api.dwh_airflow_utils import DagConfig, get_dag_configs
+from fintech_dwh_lib.airflow_api.dwh_airflow_utils import DagConfig
 from fintech_dwh_lib.env import DWH_ENV_NAME
 from fintech_dwh_lib.greenplum.dwh_sqlalchemy import DwhGpSqlalchemyProcessor
 
@@ -123,7 +123,7 @@ def dag_generate_by_config(s3_bucket, s3_configs_path: str, dag_generate_dir: st
 
     for item in dag_dict.values():
         print(f'Start DAG generating for {item.dag_config}')
-        dag_file_name = dag_generate_by_template(s3_bucket, item, dag_generate_dir, s3_configs_path)
+        dag_file_name = dag_generate_by_template(s3_bucket, item, dag_generate_dir)
         if dag_file_name in dag_names:
             print(f'Duplicate DAG name {dag_file_name} for {item}')
             continue
@@ -162,7 +162,7 @@ def fill_schedule(schedule):
     return schedule.format(workdays=workdays)
 
 
-def dag_generate_by_template(s3_bucket, item: DagConfig, dag_generate_dir: str, s3_configs_path: str) -> str:
+def dag_generate_by_template(s3_bucket, item: DagConfig, dag_generate_dir: str) -> str:
 
     dag_config_body = s3_bucket.get_object_data(item.dag_config)
     dag_config_dict = YAML().load(dag_config_body)

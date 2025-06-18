@@ -27,4 +27,4 @@ task_groups:
       - data/solar-v2/ods/pay-iss-bo/bo_agreement/snapshots/dt={today}
       - data/abs-cft/ods/ya_product/snapshots/dt={today}
       - data/abs-cft/ods/product/snapshots/dt={today}
-    s3_indicator: 'users/indicator/agreements_solar_abs_{DT-1}'
+    s3_indicator: 'users/indicator/agreements_solar_abs_{DT}'

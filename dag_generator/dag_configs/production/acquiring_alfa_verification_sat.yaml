@@ -1,18 +1,18 @@
 dag_args:
   schedule: 30 7-10 * * 1
   doc_md: |
-    Выполнение рассылки "Сверка расчетов по эквайрингу через Альфу за субботу и пятницу"
+    Выполнение рассылки "Сверка расчетов по эквайрингу через Альфу за субботу"
 
-    https://wiki.yandex-team.ru/fintech-team/dwh/modeldannyx/clickhouse/a103292a4ab1-1/
+    [Docs](https://docs.yandex-team.ru/fintech/dwh-service/reconciliation/acquiring_alfa_verification)
 
     [Действия при падении дага](https://wiki.yandex-team.ru/fintech-team/dwh/sverki/dejjstvija-pri-padenii-report-builder-instrument-d/)
-
+params:
+  DT: -2
 task_groups:
-  - &insert
-    task_id: acquiring_alfa_verification_sat
+  - task_id: acquiring_alfa_verification
     config_file: acquiring_alfa_verification.yaml
     endpoint_file: endpoints.yaml
-    reports: acquiring_alfa_verification_sat
+    reports: acquiring_alfa_verification
     spark_params:
       spark.driver.memory: 4g
       spark.executor.cores: '4'
@@ -25,8 +25,4 @@ task_groups:
       - acquiring_alfa_verification.sql
     templates:
       - acquiring_alfa_email.j2
-    s3_indicator: 'users/indicator/acquiring_alfa_{DT-2}'
-  - <<: *insert
-    task_id: acquiring_alfa_verification_fri
-    reports: acquiring_alfa_verification_fri
-    s3_indicator: 'users/indicator/acquiring_alfa_{DT-3}'
+    s3_indicator: 'users/indicator/acquiring_alfa_{DT}'

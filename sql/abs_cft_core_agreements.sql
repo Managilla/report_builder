@@ -91,9 +91,9 @@ from common_table_1
 select 
     dif_type,
     coalesce (C_NUM_DOG, visible_number) as agreement,
-    case when dif_type = 'dif_status' then C_CODE 
+    case when dif_type = 'dif_status' then cft_status_for_join 
         end as cft_status, 
-    case when dif_type = 'dif_status' then status 
+    case when dif_type = 'dif_status' then ftc_status_for_join 
         end as ftc_status,
     case when dif_type = 'dif_open_date' then cft_opening_date
         end as cft_opening_date,

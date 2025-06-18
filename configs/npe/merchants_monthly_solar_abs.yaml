@@ -48,4 +48,8 @@
     recipients: 
       - lerayatsevich@yandex-team.ru
     body: Сверка для актов по мерчантам Солар и АБС за {DT}, результат во вложении и на S3
+  gp_table:
+    table_name: merchants_monthly_solar_abs
+    table_schema: reconciliation
+  include_in_normative_reports: True
 

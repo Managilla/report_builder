@@ -5,13 +5,14 @@ dag_args:
 
     https://wiki.yandex-team.ru/fintech-team/dwh/modeldannyx/f2ffb074169a/karta-otobrazhenija-obekta-vitrina-sverki-ps-mir-n/
     
-
+params:
+  DT: -2
 task_groups:  
   - task_id: transaction_duplicate
     config_file: ps_mir.yaml
     endpoint_file: endpoints.yaml
     s3_endpoint: s3_analytics_sa
-    reports: transaction_duplicate
+    reports: ps_mir_transaction_duplicate
     spark_params:
       spark.driver.memory: 4g
       spark.executor.cores: '4'
@@ -33,4 +34,4 @@ task_groups:
       - data/solar-v2/ods/cards-iss-bo/rt_system/snapshots/dt={today}
       - data/core_auth_doc_data/ods/core-auth-doc-data/authorization_transactions/latest
       - data/core_auth_doc_data/ods/core-auth-doc-data/financial_transactions/latest
-    s3_indicator: 'users/indicator/ps_mir_transaction_duplicate_{DT-2}'
+    s3_indicator: 'users/indicator/ps_mir_transaction_duplicate_{DT}'

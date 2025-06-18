@@ -29,4 +29,4 @@ task_groups:
       - data/abs-cft/ods/ac_fin/snapshots/dt={today}
       - data/abs-cft/ods/com_status_prd/snapshots/dt={today}
       - data/abs-cft/ods/account/snapshots/dt={today}
-    s3_indicator: 'users/indicator/account_statuses_solar_abs_{DT-1}'
+    s3_indicator: 'users/indicator/account_statuses_solar_abs_{DT}'

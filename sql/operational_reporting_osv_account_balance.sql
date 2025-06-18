@@ -17,8 +17,18 @@ WITH cdm_acc_balance AS (
     FROM account_balance abf
     INNER JOIN abs_acc acc
         ON bigint(replace(acc.ID,'.0000000000','')) = abf.account_nk
-    WHERE to_date(abf.account_balance_effective_from_date) < {cutoff_day}
+    WHERE to_date(abf.account_balance_effective_from_date) < to_date('2025-04-01')
         AND abf.valid_to_date = to_date('2100-12-31')
+)
+, record_inc AS (
+    SELECT *
+    FROM (
+            SELECT *,
+                row_number() over (PARTITION BY C_DOC,COLLECTION_ID ORDER BY txn_ts DESC, txn_id DESC) AS rn
+            FROM abs_records_inc
+            WHERE dt > CURRENT_DATE-30
+            ) t
+    WHERE t.rn = 1
 )
 , records AS (
     SELECT
@@ -40,11 +50,10 @@ WITH cdm_acc_balance AS (
         , bigint(replace(rec.COLLECTION_ID,'.0000000000','')) AS collection_id
         , bigint(replace(rec.C_ACC_CORR,'.0000000000','')) AS corr_account_nk
         , bigint(replace(rec.C_DOC,'.0000000000','')) AS posting_nk
-    FROM abs_records rec
+    FROM record_inc rec
     INNER JOIN abs_acc acc
         ON acc.C_ARC_MOVE = rec.COLLECTION_ID
-    WHERE to_date(rec.C_DATE) >= {cutoff_day}
-
+    WHERE to_date(rec.C_DATE) >= to_date('2025-04-01')
     ORDER BY rec.C_DATE ASC
 )
 , account_balance AS (
@@ -149,25 +158,26 @@ WITH cdm_acc_balance AS (
     FROM account_balance
 )
 SELECT
-    date_add(current_date(), -1) AS account_balance_date
+    current_date() AS account_balance_date
+    , account_nk
     , acc_num_bs2      AS second_order_account_number
     , account_number
     , CASE
-          WHEN account_balance_effective_from_date = date_add(current_date(), -1)
+          WHEN account_balance_effective_from_date = current_date()
               THEN account_balance_in_amount
           ELSE account_balance_out_amount
       END              AS account_balance_in_amount
     , account_balance_out_amount
     , CASE
-          WHEN account_balance_effective_from_date = date_add(current_date(), -1)
+          WHEN account_balance_effective_from_date = current_date()
               THEN account_debit_turn_amount
           ELSE 0
       END              AS account_debit_turn_amount
     , CASE
-          WHEN account_balance_effective_from_date = date_add(current_date(), -1)
+          WHEN account_balance_effective_from_date = current_date()
               THEN account_credit_turn_amount
           ELSE 0
       END              AS account_credit_turn_amount
 FROM union_acc_balance
-WHERE date_add(current_date(), -1) BETWEEN account_balance_effective_from_date AND account_balance_effective_to_date
+WHERE current_date() BETWEEN account_balance_effective_from_date AND account_balance_effective_to_date
 ;

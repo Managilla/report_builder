@@ -24,3 +24,6 @@
     recipients: 
       - ipochitalkin@yandex-team.ru
     body: Расхождений не обнаружено.
+  gp_table:
+    table_name: abs_tps_zku_payments
+    table_schema: reconciliation

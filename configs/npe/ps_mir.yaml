@@ -1,4 +1,4 @@
-- name: fake_clears
+- name: ps_mir_fake_clears
   report_type: dwh2notification
   s3_sources:
     bo_txn: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
@@ -45,7 +45,9 @@
   gp_table:
     table_name: ps_mir_fake_clears
     table_schema: reconciliation
-- name: transaction_duplicate
+  include_in_normative_reports: True
+
+- name: ps_mir_transaction_duplicate
   report_type: dwh2notification
   s3_sources:
     bo_txn: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
@@ -79,8 +81,9 @@
   gp_table:
     table_name: ps_mir_transaction_duplicate
     table_schema: reconciliation
+  include_in_normative_reports: True
 
-- name: card_transactions
+- name: ps_mir_card_transactions
   report_type: dwh2notification
   s3_sources:
     bo_txn: data/solar-v2/ods/pay-iss-bo/bo_txn/snapshots/dt={today}
@@ -113,8 +116,9 @@
   gp_table:
     table_name: ps_mir_card_transactions
     table_schema: reconciliation
+  include_in_normative_reports: True
 
-- name: credit_transactions
+- name: ps_mir_credit_transactions
   report_type: dwh2notification
   # s3_bucket: processing-dwh-npe
   s3_sources:
@@ -148,4 +152,4 @@
   gp_table:
     table_name: ps_mir_credit_transactions
     table_schema: reconciliation
-    
+  include_in_normative_reports: True

@@ -1,11 +1,11 @@
 dag_args:
   schedule: 0 8 * * *
   doc_md: |
-    Даг для расчёта Оборотно-Сальдовой Ведомости за день
+    Даг для расчёта красного сальдо за день
 task_groups:
-  - task_id: osv_account_balance_report
-    config_file: osv_account_balance_report.yaml
-    reports: osv_account_balance_report
+  - task_id: operational_reporting_red_saldo
+    config_file: operational_reporting_red_saldo.yaml
+    reports: operational_reporting_red_saldo
     endpoint_file: endpoints.yaml
     s3_endpoint: s3_analytics_sa
     spark_params:
@@ -18,9 +18,9 @@ task_groups:
       spark.dynamicAllocation.minExecutors: '5'
       spark.dynamicAllocation.enabled: 'true'
     sql:
-      - osv_account_balance_report.sql
+      - operational_reporting_red_saldo.sql
     s3_sensors:
-      - data/abs-cft/ods/records/snapshots/dt={today}
+      - data/temp/osv_account_balance
       - data/abs-cft/ods/ac_fin/latest
-      - data/abs-cft/ods/journal_op_days/latest
-      - data/cdm/account_balance
+      - data/abs-cft/ods/type_acc/latest
+      - data/abs-cft/ods/user/latest

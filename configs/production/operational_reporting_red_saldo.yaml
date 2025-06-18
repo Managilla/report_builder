@@ -1,0 +1,9 @@
+- name: operational_reporting_red_saldo
+  report_type: dwh2s3
+  sql_query: operational_reporting_red_saldo.sql
+  s3_sources:
+    osv_account_balance: data/temp/osv_account_balance
+    abs_acc: data/abs-cft/ods/ac_fin/latest
+    abs_acc_type: data/abs-cft/ods/type_acc/latest
+    abs_user_acc: data/abs-cft/ods/user/latest
+  s3_path: data/temp/red_saldo

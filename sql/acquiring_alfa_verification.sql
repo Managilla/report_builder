@@ -1,3 +1,4 @@
+with tab as (
 SELECT md.C_DATE_PROV as report_date
     , sum(case when substring(c_num_dt, 1, 5)='30110' and dkt.amount_type='payments_within_bank' then md.c_sum end) as payments_within_bank_amount
     , sum(case when ddt.amount_type='refunds_within_bank' and substring(md.c_num_kt, 1, 5)='30110' then md.c_sum end) as refunds_within_bank_amount
@@ -26,3 +27,8 @@ WHERE md.rn=1 and
     or (ddt.amount_type='refunds_alfa' and dkt.amount_type='refunds_alfa')
 )
 GROUP BY C_DATE_PROV
+)
+select tab.*
+ , coalesce(refunds_within_bank_amount, 0) - coalesce(refunds_alfa_amount, 0) as difference_refunds_amount
+ , coalesce(payments_within_bank_amount, 0) - coalesce(payments_alfa_amount, 0) as difference_payments_amount
+from tab

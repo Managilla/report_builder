@@ -121,13 +121,6 @@ def storage_options(context: ReportContext) -> Dict:
 def str_format(string: str, report: Report, filler: Dict = None, replace_slash=None) -> str:
     frm = {}
     frm_dt = dates_dict(report)
-
-    # Добавляем кастомные параметры дат если они есть
-    if hasattr(report, 'date_params') and report.date_params:
-        for param_name, param_value in report.date_params.items():
-            # Преобразуем даты в формат to_date() для Spark SQL
-            frm[param_name] = f"to_date('{param_value}')"
-
     if filler:
         frm = {**frm, **filler}
     if replace_slash and frm:
@@ -203,21 +196,45 @@ def write_to_gp(report: Report, context: ReportContext, df: DataFrame):
     context.logger.info('Finished writing to GP')
 
 
-def register_report_readiness(report: Report, context: ReportContext):
-    dd = dates_dict(report)
-    context.logger.info('Started register report in normative report meta table')
-    context.gp_processor.execute_statement(
-        f'''
-        SELECT r_report_robot.md_register_report_calculation(
-            '{report.name}',
-            ARRAY[
-                r_report_robot.md_named_variant('p_processing_dttm','{dd['DTTM']}'),
-                r_report_robot.md_named_variant('p_report_dt','{str(dd['DT'])}')
-            ]
+class ReportStatus:
+    report_id = None
+
+    @classmethod
+    def start(cls, report: Report, context: ReportContext):
+
+        dd = dates_dict(report)
+        context.logger.info('Registered start of report calculation in normative report meta table')
+        res = context.gp_processor.execute_statement(
+            f'''
+            SELECT r_report_robot.md_start_report_calculation(
+                '{report.name}',
+                ARRAY[
+                    r_report_robot.md_named_variant('p_processing_dttm','{dd['DTTM']}'),
+                    r_report_robot.md_named_variant('p_report_dt','{str(dd['DT'])}')
+                ]
+            )
+        '''
         )
-    '''
-    )
-    context.logger.info('Finished register report in normative report meta table')
+        [[cls.report_id]] = res
+        context.logger.info('Finished register report in normative report meta table')
+
+    @classmethod
+    def end(cls, context: ReportContext):
+        context.logger.info('Registered end of report calculation normative report meta table')
+        context.gp_processor.execute_statement(
+            f'''
+                select r_report_robot.md_finish_report_calculation({cls.report_id});
+            '''
+        )
+
+    @classmethod
+    def error(cls, context: ReportContext):
+        context.logger.info('Registered error in report calculation normative report meta table')
+        context.gp_processor.execute_statement(
+            f'''
+                select r_report_robot.md_error_report_calculation({cls.report_id});
+            '''
+        )
 
 
 def send_email(report: Report, context: ReportContext, attachments: List[str]) -> None:
@@ -322,7 +339,6 @@ class dwh2notificationReport(BaseModel):
     attachment: Optional[List[Attachment]] = Field(default=None)
     email_on_failture: Optional[Dict] = Field(default=None)
     email: Optional[Dict] = Field(default=None)
-    date_params: Optional[Dict[str, str]] = Field(default=None)  # Новое поле для параметров дат
     gp_table: Optional[GPTable] = Field(default=None)
     include_in_normative_reports: Optional[bool] = Field(default=False)
 
@@ -334,6 +350,7 @@ class dwh2notificationReport(BaseModel):
         return v
 
     def run(self, context: ReportContext, events: Optional[Events] = None) -> None:
+
         self.get(context)
         df = spark_transform(self, context)
         df.persist()
@@ -365,8 +382,6 @@ class dwh2notificationReport(BaseModel):
         if self.gp_table:
             write_to_gp(self, context, df)
         df.unpersist()
-        if self.include_in_normative_reports:
-            register_report_readiness(self, context)
 
     def get(self, context: ReportContext):
         for name, path in self.s3_sources.items():
@@ -528,8 +543,6 @@ class dwh2s3Report(BaseModel):
     sql_query: str
     s3_path: str
     DT: int = Field(default=0)
-    date_params: Optional[Dict[str, str]] = Field(default=None)  # Новое поле для параметров дат
-    include_timestamp: bool = Field(default=False)  # Новое поле для включения timestamp в путь
 
     @field_validator('report_type')
     @classmethod
@@ -549,14 +562,7 @@ class dwh2s3Report(BaseModel):
             context.processor.read(path.format(today=today), format='parquet').createOrReplaceTempView(name)
 
     def put(self, context: ReportContext, df: DataFrame) -> None:
-        # Если включен timestamp, добавляем его к пути
-        final_path = self.s3_path
-        if self.include_timestamp:
-            timestamp = pendulum.now().format('YYYYMMDD_HHmmss')
-            # Добавляем timestamp как подпапку для сохранения историчности
-            final_path = os.path.join(self.s3_path, f'dt={timestamp}')
-
-        context.processor.write(df, final_path, mode='overwrite', repartition_num_partitions=5)
+        context.processor.write(df, self.s3_path, mode='overwrite', repartition_num_partitions=5)
 
 
 class ReportList:

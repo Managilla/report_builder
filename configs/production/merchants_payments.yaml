@@ -11,7 +11,7 @@
     dict_calendar_cft: data/dds/dict/dict_calendar_cft/valid_to_date=2100-12-31
   s3_bucket: dwh-bank-recon-s3-prod
   filename_pattern: "operations/reconciliation/Сверка возмещений по выплатам мерчантам/{DT_SLASH}/Сверка возмещений по выплатам мерчантам {DT} ({DTTM}).xlsx" 
-  sql_query: merchants_daily.sql
+  sql_query: merchants_payments.sql
   indicator_type: failure
   indicator_name: 'merchants_compare/{DT}'
   DT: -1
@@ -44,3 +44,7 @@
       - Liudmila.I.Stepanova@bank.yandex.ru
       - lerayatsevich@yandex-team.ru
     body: Расхождений не обнаружено.
+  gp_table:
+    table_name: merchants_payments
+    table_schema: reconciliation
+  include_in_normative_reports: True

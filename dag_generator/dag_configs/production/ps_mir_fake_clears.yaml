@@ -7,12 +7,14 @@ dag_args:
 
     [Действия при падении дага](https://wiki.yandex-team.ru/fintech-team/dwh/sverki/dejjstvija-pri-padenii-report-builder-instrument-d/)
 
+params:
+  DT: -2
 task_groups:
   - task_id: fake_clears
     config_file: ps_mir.yaml
     endpoint_file: endpoints.yaml
     s3_endpoint: s3_analytics_sa
-    reports: fake_clears
+    reports: ps_mir_fake_clears
     spark_params:
       spark.driver.memory: 4g
       spark.executor.cores: '4'
@@ -34,4 +36,4 @@ task_groups:
       - data/solar-v2/ods/cards-iss-bo/rt_system/snapshots/dt={today}
       - data/core_auth_doc_data/ods/core-auth-doc-data/authorization_transactions/latest
       - data/core_auth_doc_data/ods/core-auth-doc-data/financial_transactions/latest
-    s3_indicator: 'users/indicator/ps_mir_fake_clears_{DT-2}'
+    s3_indicator: 'users/indicator/ps_mir_fake_clears_{DT}'

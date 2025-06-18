@@ -3,14 +3,14 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-import pendulum
-
 from fintech_dwh_lib import conf
+
+import pendulum
 
 from .src.context import ReportContext
 from .src.endpoint import Endpoint, S3endpoint
 from .src.events import Events
-from .src.pipeline import ReportList
+from .src.pipeline import ReportList, ReportStatus
 
 
 def get_args():
@@ -74,11 +74,17 @@ def main(job_name):
         try:
             events.add(result='IN PROCESS')
             events.start()
+            if getattr(report, 'include_in_normative_reports', False):
+                ReportStatus.start(report, context)
             context.logger.info(f'Started processing report {report.name}')
             report.run(context, events)
             events.end()
+            if getattr(report, 'include_in_normative_reports', False):
+                ReportStatus.end(context)
         except Exception as e:
             events.error()
+            if getattr(report, 'include_in_normative_reports', False):
+                ReportStatus.error(context)
             raise e
 
     context.processor.session.stop()

@@ -20,11 +20,11 @@ task_groups:
       spark.dynamicAllocation.minExecutors: '5'
       spark.dynamicAllocation.enabled: 'true'
     sql: 
-      - merchants_daily.sql
+      - merchants_payments.sql
     s3_sensors:
       - data/abs-cft/ods/ac_fin/snapshots/dt={today}
       - data/abs-cft/ods/ya_merchant/snapshots/dt={today}
       - data/abs-cft/ods/hoz_op_acc/snapshots/dt={today}
       - data/abs-cft/ods/client/snapshots/dt={today}
       - data/abs-cft/ods/ud_code_name/snapshots/dt={today}
-    s3_indicator: 'users/indicator/merchants_compare_{DT-1}'
+    s3_indicator: 'users/indicator/merchants_compare_{DT}'

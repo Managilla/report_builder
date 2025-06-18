@@ -27,4 +27,4 @@ task_groups:
     dataset_sensors:
       s3:
         - data/core_tps/ods_hudi/core-tps/smev_message
-    s3_indicator: 'users/indicator/abs_tps_zku_payments{DT-1}'
+    s3_indicator: 'users/indicator/abs_tps_zku_payments{DT}'

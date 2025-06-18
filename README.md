@@ -1,5 +1,8 @@
 # PySpark job report_builder
 
+## Документация
+Документация инструмента поддерживается в [Docs](https://docs.yandex-team.ru/fintech/dwh-service/reconciliation/reconciliation#ssylki).
+
 ## Отладка на NPE
 
 ```shell
@@ -37,3 +40,4 @@ from dwh.events AS e
 WHERE service_name = 'REPORT_BUILDER'
 	AND attachment_paths = ''
 ```
+

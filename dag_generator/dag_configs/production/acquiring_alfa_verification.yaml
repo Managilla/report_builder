@@ -24,4 +24,4 @@ task_groups:
       - acquiring_alfa_verification.sql
     templates:
       - acquiring_alfa_email.j2
-    s3_indicator: 'users/indicator/acquiring_alfa_{DT-1}'
+    s3_indicator: 'users/indicator/acquiring_alfa_{DT}'

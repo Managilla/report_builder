@@ -17,13 +17,12 @@ from fintech_dwh.common.s3_buckets import JAR_GREENPLUM_CONNECTOR, JAR_SPARK_EXC
 from fintech_dwh.common.datasets import S3Dataset
 from fintech_dwh.common.dependencies import make_task_name_from_uri
 from fintech_dwh.common.sensors import gp_sources_readiness_sensor, s3_metadata_sensor, datasets_updated_today_sensor
-from fintech_dwh.common.operators import DataprocCreatePysparkJobOperatorWithTemplatedArgs
+from fintech_dwh.common.operators import FinDwhDataprocCreatePysparkJobOperator
 from fintech_dwh_lib.conf.dds_sensors import DEFAULT_POKE_INTERVAL
 from fintech_dwh_lib.conf.s3 import S3_BUCKET, S3_SECRET_ID
 from fintech_dwh_lib.env import DWH_ENV_NAME
 from fintech_dwh_lib.lockbox import Lockbox
 from fintech_dwh_lib.s3 import S3Bucket
-
 
 
 # ----------------------------------------------------------------------------------------
@@ -35,16 +34,13 @@ logger = logging.getLogger(__name__)
 pool = 'default_pool'
 SOURCES_SENSOR_TIMEOUT = 9 * 60 * 60
 
-def get_args(params):
-    dag_config_args = [
-        'DT',
-    ]
-    args = []
-    for arg in dag_config_args:
-        arg_value_in_params = params[arg]
-        if (arg_value_in_params is not None) and (arg_value_in_params != 'None'):
-            args.append(f'--{arg} {arg_value_in_params}')
-    return ' '.join(args)
+def get_arg_dt(params, report_dt=None):
+    arg_value = params.get('DT')
+    if (arg_value != 'None') and (arg_value is not None):
+        return f'--DT {arg_value}'
+    else:
+        return f'--DT {report_dt}'
+
 
 default_args = {
     'catchup': False,
@@ -66,7 +62,6 @@ dag_args = {
         },
 }
 
-
 root_ca_crt_name = ''
 if DWH_ENV_NAME == 'npe':
     root_ca_crt_name = 'YandexBankNPERootCA.crt'
@@ -77,7 +72,6 @@ CONFIG_PATH = f's3a://{S3_BUCKET}/spark-jobs/report_builder/configs/{DWH_ENV_NAM
 spark_job_path_s3a = f's3a://{S3_BUCKET}/spark-jobs/report_builder'
 SQL_PATH = f's3a://{S3_BUCKET}/spark-jobs/report_builder/sql'
 TEMPLATES_PATH = f's3a://{S3_BUCKET}/spark-jobs/report_builder/templates'
-
 
 task_list = [{% for task in TASK_LIST %}
     {
@@ -110,6 +104,8 @@ JOB_CONFIG = {
     ],
 }
 
+report_dt = pendulum.today().add(days={{DAG_CONFIG_DICT.get('params', {}).get('DT', -1)}}).to_date_string()
+
 # ----------------------------------------------------------------------------------------
 # DAG code without jinja
 # ----------------------------------------------------------------------------------------
@@ -117,23 +113,10 @@ group = {}
 job = {}
 
 def branch_indicator(s3_ind, task_id, **kwargs):
-    params = kwargs['params']
-    
-    flag = True
-    pattern = r"\{DT([-+]\d+)\}"
-    match = re.search(pattern, s3_ind)
-    if match and params.get('DT'):
-        DT = params.get('DT')
-    elif match:
-        delta = int(match.group(1))
-        DT = pendulum.today().add(days=delta).to_date_string()
-    else:
-        DT = pendulum.today().to_date_string()
-        flag = False
 
-    if flag:
-        pattern = r"\{DT[-+]\d+\}"
-        s3_ind = re.sub(pattern, '{DT}', s3_ind)
+    params = kwargs['params']
+    DT = params.get('DT') or report_dt
+    
     s3_ind = s3_ind.format(DT = DT)
     print(s3_ind)
 
@@ -144,10 +127,10 @@ def branch_indicator(s3_ind, task_id, **kwargs):
         aws_secret_access_key=s3_secrets["aws_secret_access_key"]
     )
 
-    res = s3_bucket.is_object_exist(s3_ind)
-    print(res)
-    if res: return 'skip_'+task_id
-    else: return task_id+'_group'
+    if s3_bucket.is_object_exist(s3_ind):
+        return f'{task_id}.skip'
+    else:
+        return f'{task_id}.task_group'
 
 
 with DAG(
@@ -157,7 +140,10 @@ with DAG(
             'cluster_id': Param(CLUSTER_ID, type='string', title='Cluster ID'),
             'DT': Param(None, format="date", type=['null', 'string'], title='Date', description='Выбрать дату или оставить пустым'),
         },
-        user_defined_macros={'get_args': get_args},
+        user_defined_macros={
+            'get_arg_dt': get_arg_dt,
+            'report_dt': report_dt,
+            },
     ) as dag:
 
     for task in task_list:
@@ -165,80 +151,81 @@ with DAG(
         pool_slots = task['pool_slots']
         main_args = task['main_args']
 
-        @task_group(group_id = task_id+'_group')
-        def gr():
 
-            job[task_id] = DataprocCreatePysparkJobOperatorWithTemplatedArgs(
-                task_id=task_id,
-                name=task_id,
-                pool_slots=pool_slots,
-                main_python_file_uri=JOB_CONFIG['main_python_file_uri'],
-                python_file_uris=JOB_CONFIG['python_file_uris'],
-                file_uris=[
-                    *JOB_CONFIG['file_uris'],
-                    f'{CONFIG_PATH}/{task["endpoint_file"]}',
-                    f'{CONFIG_PATH}/{task["config_file"]}',
-                    *[f'{TEMPLATES_PATH}/{template}' for template in task["templates"]],
-                    *[f'{SQL_PATH}/{sql}' for sql in task["sql"]],
-                    ],
-                properties=task['spark_params'],
-                cluster_id="{{ '{{' }} params['cluster_id'] {{ '}}' }}",
-                args=[main_args+ ' ' +"{{ '{{' }} get_args(params)  {{ '}}' }}"],
-                connection_id=CONNECTION_ID,
-                jar_file_uris=[JAR_GREENPLUM_CONNECTOR, JAR_SPARK_EXCEL, JAR_HUDI],
+        with TaskGroup(task_id) as pipeline:
+            @task_group(group_id = 'task_group')
+            def gr():
+                job[task_id] = FinDwhDataprocCreatePysparkJobOperator(
+                    task_id='job',
+                    name=f'report_builder_{task_id}',
+                    pool_slots=pool_slots,
+                    main_python_file_uri=JOB_CONFIG['main_python_file_uri'],
+                    python_file_uris=JOB_CONFIG['python_file_uris'],
+                    file_uris=[
+                        *JOB_CONFIG['file_uris'],
+                        f'{CONFIG_PATH}/{task["endpoint_file"]}',
+                        f'{CONFIG_PATH}/{task["config_file"]}',
+                        *[f'{TEMPLATES_PATH}/{template}' for template in task["templates"]],
+                        *[f'{SQL_PATH}/{sql}' for sql in task["sql"]],
+                        ],
+                    properties=task['spark_params'],
+                    cluster_id="{{ '{{' }} params['cluster_id'] {{ '}}' }}",
+                    args=[main_args+ ' ' + " {{ ' {{ ' }} get_arg_dt(params, report_dt) {{ ' }} ' }} " ],
+                    connection_id=CONNECTION_ID,
+                    jar_file_uris=[JAR_GREENPLUM_CONNECTOR, JAR_SPARK_EXCEL, JAR_HUDI],
                     )
-            with TaskGroup('sensors') as sensors_gr:
-                if task['dataset_sensors']:
-                    with TaskGroup('datasets') as datasets_sensors:
-                        with TaskGroup('s3') as datasets_sensors_s3:
-                            for path in task['dataset_sensors'].get('s3', []):
-                                dataset = S3Dataset(path)
-                                datasets_updated_today_sensor(
-                                    task_id=make_task_name_from_uri(path.replace('-', '_')),
-                                    logger=logger,
-                                    timeout=SOURCES_SENSOR_TIMEOUT,
-                                    poke_interval=DEFAULT_POKE_INTERVAL,
-                                    datasets_to_check=[dataset],
-                                )
+                with TaskGroup('sensors') as sensors_gr:
+                    if task['dataset_sensors']:
+                        with TaskGroup('datasets') as datasets_sensors:
+                            with TaskGroup('s3') as datasets_sensors_s3:
+                                for path in task['dataset_sensors'].get('s3', []):
+                                    dataset = S3Dataset(path)
+                                    datasets_updated_today_sensor(
+                                        task_id=make_task_name_from_uri(path.replace('-', '_')),
+                                        logger=logger,
+                                        timeout=SOURCES_SENSOR_TIMEOUT,
+                                        poke_interval=DEFAULT_POKE_INTERVAL,
+                                        datasets_to_check=[dataset],
+                                    )
 
-                if task['s3_sensors']:
-                    today = pendulum.today(tz='Europe/Moscow').to_date_string()
-                    filled_s3_sensors = [path.format(today=today) for path in task['s3_sensors']]
+                    if task['s3_sensors']:
+                        today = pendulum.today(tz='Europe/Moscow').to_date_string()
+                        filled_s3_sensors = [path.format(today=today) for path in task['s3_sensors']]
 
-                    s3_attrs_sensor = s3_metadata_sensor(
-                        task_id='s3',
-                        pool=pool,
-                        s3_dep_path_list=filled_s3_sensors,
-                        mode='reschedule',
-                        poke_interval=DEFAULT_POKE_INTERVAL,
-                        timeout=SOURCES_SENSOR_TIMEOUT,
-                        logger=logger,
-                        time_delay='today_msk',
-                    )
+                        s3_attrs_sensor = s3_metadata_sensor(
+                            task_id='s3',
+                            pool=pool,
+                            s3_dep_path_list=filled_s3_sensors,
+                            mode='reschedule',
+                            poke_interval=DEFAULT_POKE_INTERVAL,
+                            timeout=SOURCES_SENSOR_TIMEOUT,
+                            logger=logger,
+                            time_delay='today_msk',
+                        )
 
-                if task['gp_sensors']:
-                    gp_sources_readiness_sensor_job = gp_sources_readiness_sensor(
-                        task_id='gp',
-                        pool=pool,
-                        source_tables_and_dates=task['gp_sensors'],
-                        check_datetime=pendulum.now(),
-                        check_timedelta=timedelta(hours=24),
-                        logger=logger
-                    )
-                
-                sensors_gr >> job[task_id]
+                    if task['gp_sensors']:
+                        gp_sources_readiness_sensor_job = gp_sources_readiness_sensor(
+                            task_id='gp',
+                            pool=pool,
+                            source_tables_and_dates=task['gp_sensors'],
+                            check_datetime=pendulum.now(),
+                            check_timedelta=timedelta(hours=24),
+                            logger=logger
+                        )
+                    
+                    sensors_gr >> job[task_id]
 
-        if task['s3_indicator'] and task['s3_indicator'] != 'None':
-            condition = BranchPythonOperator(
-                task_id='s3_ind_condition_'+task_id,
-                python_callable=branch_indicator,
-                op_args=[task['s3_indicator'], task_id],
-            )
+            if task['s3_indicator'] and task['s3_indicator'] != 'None':
+                condition = BranchPythonOperator(
+                    task_id='s3_ind_condition',
+                    python_callable=branch_indicator,
+                    op_args=[task['s3_indicator'], task_id],
+                )
 
-            skip = EmptyOperator(task_id='skip_'+task_id)
-            condition >> [gr(), skip]
-        else:
-            gr()
+                skip = EmptyOperator(task_id='skip')
+                condition >> [gr(), skip]
+            else:
+                gr()
 # ----------------------------------------------------------------------------------------
 # Parameters DAG structure from config (dwh/spark_jobs/report_builder/dag_configs)
 # ----------------------------------------------------------------------------------------

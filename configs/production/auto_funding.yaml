@@ -31,3 +31,7 @@
       - karpachevata@yandex-team.ru
       - deposit@bank.yandex.ru
     body: Расхождений не обнаружено.
+  gp_table:
+    table_name: auto_funding
+    table_schema: reconciliation
+  include_in_normative_reports: True

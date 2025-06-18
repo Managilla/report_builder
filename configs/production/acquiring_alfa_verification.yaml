@@ -1,5 +1,4 @@
-- &insert
-  name: acquiring_alfa_verification
+- name: acquiring_alfa_verification
   report_type: dwh2notification
   s3_sources:
     main_docum_inc: data/abs-cft/raw/main_docum/inc
@@ -27,9 +26,7 @@
         coalesce(sum(refunds_within_bank_amount-refunds_alfa_amount), -1)!=0) then 1 else 0 end
         from result
       sql_fill_template: |
-        select result.*, 
-        coalesce(payments_within_bank_amount, 0) - coalesce(payments_alfa_amount, 0) as difference_payments_amount,
-        coalesce(refunds_within_bank_amount, 0) - coalesce(refunds_alfa_amount, 0) as difference_refunds_amount
+        select result.*
         from result
       add_text: acquiring_alfa_email.j2
   email:
@@ -49,11 +46,7 @@
       - Liudmila.I.Stepanova@bank.yandex.ru
       - lerayatsevich@yandex-team.ru
     body: Расхождений не обнаружено.
-
-- <<: *insert
-  name: acquiring_alfa_verification_sat
-  DT: -2
-
-- <<: *insert
-  name: acquiring_alfa_verification_fri
-  DT: -3
+  gp_table:
+    table_name: acquiring_alfa_verification
+    table_schema: reconciliation
+  include_in_normative_reports: True

@@ -54,4 +54,4 @@ task_groups:
       - data/processing/ods/cards-acq-bo/inv_invoice_item
       - data/processing/ods/cards-acq-bo/inv_invoice_entry
       - data/processing/ods/cards-acq-bo/bo_fee_txn
-    s3_indicator: 'users/indicator/merchants_monthly_solar_abs_{DT-1}'
+    s3_indicator: 'users/indicator/merchants_monthly_solar_abs_{DT}'
